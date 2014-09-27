@@ -21,6 +21,12 @@ struct vb2_buf_entry {
 
 extern const char *const mpeg_video_vidc_extradata[];
 
+enum load_calc_quirks {
+	LOAD_CALC_NO_QUIRKS = 0,
+	LOAD_CALC_IGNORE_TURBO_LOAD = 1 << 0,
+	LOAD_CALC_IGNORE_THUMBNAIL_LOAD = 1 << 1,
+};
+
 struct msm_vidc_core *get_vidc_core(int core_id);
 const struct msm_vidc_format *msm_comm_get_pixel_fmt_index(
 	const struct msm_vidc_format fmt[], int size, int index, int fmt_type);
@@ -40,8 +46,8 @@ int msm_comm_set_output_buffers(struct msm_vidc_inst *inst);
 int msm_comm_queue_output_buffers(struct msm_vidc_inst *inst);
 int msm_comm_qbuf(struct vb2_buffer *vb);
 void msm_comm_scale_clocks_and_bus(struct msm_vidc_inst *inst);
-void msm_comm_init_dcvs(struct msm_vidc_inst *inst);
-void msm_comm_init_dcvs_load(struct msm_vidc_inst *inst);
+int msm_comm_scale_clocks(struct msm_vidc_core *core);
+int msm_comm_scale_clocks_load(struct msm_vidc_core *core, int num_mbs_per_sec);
 int msm_comm_flush(struct msm_vidc_inst *inst, u32 flags);
 int msm_comm_release_scratch_buffers(struct msm_vidc_inst *inst,
 					bool check_for_reuse);
@@ -78,6 +84,11 @@ int msm_comm_smem_get_domain_partition(struct msm_vidc_inst *inst,
 enum hal_video_codec get_hal_codec_type(int fourcc);
 int msm_comm_load_fw(struct msm_vidc_core *core);
 int msm_comm_check_core_init(struct msm_vidc_core *core);
+int msm_comm_get_inst_load(struct msm_vidc_inst *inst,
+			enum load_calc_quirks quirks);
+int msm_comm_get_load(struct msm_vidc_core *core,
+			enum session_type type, enum load_calc_quirks quirks);
 
 void msm_comm_cleanup_internal_buffers(struct msm_vidc_inst *inst);
+
 #endif
