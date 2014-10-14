@@ -702,6 +702,10 @@ int read_platform_resources_from_dt(
 	dprintk(VIDC_DBG, "Power collapse supported = %s\n",
 		res->sw_power_collapsible ? "yes" : "no");
 
+	res->early_fw_load = of_property_read_bool(pdev->dev.of_node,
+				"qcom,early-fw-load");
+	dprintk(VIDC_DBG, "Early fw load = %s\n",
+				res->early_fw_load ? "yes" : "no");
 	return rc;
 
 err_setup_legacy_cb:
