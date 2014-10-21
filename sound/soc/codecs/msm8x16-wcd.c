@@ -6466,7 +6466,7 @@ int msm8x16_wcd_restart_mbhc(struct snd_soc_codec *codec)
 	detection_type = (snd_soc_read(codec,
 				MSM8X16_WCD_A_ANALOG_MBHC_DET_CTL_1)) & 0x20;
 	if (!detection_type)
-		snd_soc_jack_report_no_dapm(
+		snd_soc_jack_report(
 				&msm8x16_wcd_priv->mbhc.headset_jack,
 				0, jack_mask);
 	wcd_mbhc_stop(&msm8x16_wcd_priv->mbhc);
