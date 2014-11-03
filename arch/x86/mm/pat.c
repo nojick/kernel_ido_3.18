@@ -462,7 +462,7 @@ int io_reserve_memtype(resource_size_t start, resource_size_t end,
 	if (!is_new_memtype_allowed(start, size, req_type, new_type))
 		goto out_free;
 
-	if (kernel_map_sync_memtype(start, size, new_prot) < 0)
+	if (kernel_map_sync_memtype(start, size, new_type) < 0)
 		goto out_free;
 
 	*type = new_type;
