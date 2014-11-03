@@ -558,7 +558,8 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
  * Change the memory type for the physial address range in kernel identity
  * mapping space if that range is a part of identity map.
  */
-int kernel_map_sync_memtype(u64 base, unsigned long size, unsigned long flags)
+int kernel_map_sync_memtype(u64 base, unsigned long size,
+			    enum page_cache_mode pcm)
 {
 	unsigned long id_sz;
 
@@ -576,11 +577,11 @@ int kernel_map_sync_memtype(u64 base, unsigned long size, unsigned long flags)
 				__pa(high_memory) - base :
 				size;
 
-	if (ioremap_change_attr((unsigned long)__va(base), id_sz, flags) < 0) {
+	if (ioremap_change_attr((unsigned long)__va(base), id_sz, pcm) < 0) {
 		printk(KERN_INFO "%s:%d ioremap_change_attr failed %s "
 			"for [mem %#010Lx-%#010Lx]\n",
 			current->comm, current->pid,
-			cattr_name(flags),
+			cattr_name(cachemode2protval(pcm)),
 			base, (unsigned long long)(base + size-1));
 		return -EINVAL;
 	}
@@ -654,7 +655,8 @@ static int reserve_pfn_range(u64 paddr, unsigned long size, pgprot_t *vma_prot,
 				     flags);
 	}
 
-	if (kernel_map_sync_memtype(paddr, size, flags) < 0) {
+	if (kernel_map_sync_memtype(paddr, size,
+				    pgprot2cachemode(__pgprot(flags))) < 0) {
 		free_memtype(paddr, paddr + size);
 		return -EINVAL;
 	}
