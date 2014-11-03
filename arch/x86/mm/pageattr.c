@@ -1456,7 +1456,7 @@ int set_memory_uc(unsigned long addr, int numpages)
 	 * for now UC MINUS. see comments in ioremap_nocache()
 	 */
 	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-			    _PAGE_CACHE_UC_MINUS, NULL);
+			      _PAGE_CACHE_MODE_UC_MINUS, NULL);
 	if (ret)
 		goto out_err;
 
@@ -1545,7 +1545,7 @@ int set_memory_wc(unsigned long addr, int numpages)
 		return set_memory_uc(addr, numpages);
 
 	ret = reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
-		_PAGE_CACHE_WC, NULL);
+		_PAGE_CACHE_MODE_WC, NULL);
 	if (ret)
 		goto out_err;
 
