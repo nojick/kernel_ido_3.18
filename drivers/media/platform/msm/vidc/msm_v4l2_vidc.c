@@ -442,6 +442,8 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 			"Failed to allocate memory for device core\n");
 		return -ENOMEM;
 	}
+
+	dev_set_drvdata(&pdev->dev, core);
 	rc = msm_vidc_initialize_core(pdev, core);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to init core\n");
@@ -466,6 +468,8 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 		dprintk(VIDC_ERR, "Failed to register v4l2 device\n");
 		goto err_v4l2_register;
 	}
+
+	/* setup the decoder device */
 	core->vdev[MSM_VIDC_DECODER].vdev.release =
 		msm_vidc_release_video_device;
 	core->vdev[MSM_VIDC_DECODER].vdev.fops = &msm_v4l2_vidc_fops;
@@ -479,6 +483,7 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 		dprintk(VIDC_ERR, "Failed to register video decoder device");
 		goto err_dec_register;
 	}
+
 	video_set_drvdata(&core->vdev[MSM_VIDC_DECODER].vdev, core);
 	dev = &core->vdev[MSM_VIDC_DECODER].vdev.dev;
 	rc = device_create_file(dev, &dev_attr_link_name);
@@ -488,6 +493,7 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 		goto err_dec_attr_link_name;
 	}
 
+	/* setup the encoder device */
 	core->vdev[MSM_VIDC_ENCODER].vdev.release =
 		msm_vidc_release_video_device;
 	core->vdev[MSM_VIDC_ENCODER].vdev.fops = &msm_v4l2_vidc_fops;
@@ -501,6 +507,7 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 		dprintk(VIDC_ERR, "Failed to register video encoder device");
 		goto err_enc_register;
 	}
+
 	video_set_drvdata(&core->vdev[MSM_VIDC_ENCODER].vdev, core);
 	dev = &core->vdev[MSM_VIDC_ENCODER].vdev.dev;
 	rc = device_create_file(dev, &dev_attr_link_name);
@@ -510,6 +517,7 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 		goto err_enc_attr_link_name;
 	}
 
+	/* finish setting up the 'core' */
 	mutex_lock(&vidc_driver->lock);
 	if (vidc_driver->num_cores  + 1 > MSM_VIDC_CORES_MAX) {
 		mutex_unlock(&vidc_driver->lock);
@@ -526,6 +534,7 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 		mutex_lock(&vidc_driver->lock);
 		vidc_driver->num_cores--;
 		mutex_unlock(&vidc_driver->lock);
+
 		rc = PTR_ERR(core->device) ?: -EBADHANDLE;
 		if (rc != -EPROBE_DEFER)
 			dprintk(VIDC_ERR, "Failed to create HFI device\n");
@@ -537,9 +546,9 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	mutex_lock(&vidc_driver->lock);
 	list_add_tail(&core->list, &vidc_driver->cores);
 	mutex_unlock(&vidc_driver->lock);
+
 	core->debugfs_root = msm_vidc_debugfs_init_core(
 		core, vidc_driver->debugfs_root);
-	pdev->dev.platform_data = core;
 
 	dprintk(VIDC_DBG, "populating sub devices\n");
 	/*
@@ -548,9 +557,8 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 	 * context-bank details and store it in core->resources.context_banks
 	 * list.
 	 */
-	rc = of_platform_populate(
-		pdev->dev.of_node, msm_vidc_dt_match, NULL,
-		&pdev->dev);
+	rc = of_platform_populate(pdev->dev.of_node, msm_vidc_dt_match, NULL,
+			&pdev->dev);
 	if (rc) {
 		dprintk(VIDC_ERR, "Failed to trigger probe for sub-devices\n");
 		goto err_fail_sub_device_probe;
@@ -575,6 +583,7 @@ err_dec_register:
 err_v4l2_register:
 	sysfs_remove_group(&pdev->dev.kobj, &msm_vidc_core_attr_group);
 err_core_init:
+	dev_set_drvdata(&pdev->dev, NULL);
 	kfree(core);
 	return rc;
 }
@@ -620,8 +629,8 @@ static int msm_vidc_remove(struct platform_device *pdev)
 		dprintk(VIDC_ERR, "%s invalid input %p", __func__, pdev);
 		return -EINVAL;
 	}
-	core = pdev->dev.platform_data;
 
+	core = dev_get_drvdata(&pdev->dev);
 	if (!core) {
 		dprintk(VIDC_ERR, "%s invalid core", __func__);
 		return -EINVAL;
@@ -641,26 +650,27 @@ static int msm_vidc_remove(struct platform_device *pdev)
 
 	msm_vidc_free_platform_resources(&core->resources);
 	sysfs_remove_group(&pdev->dev.kobj, &msm_vidc_core_attr_group);
+	dev_set_drvdata(&pdev->dev, NULL);
 	kfree(core);
 	return rc;
 }
 
-static int msm_vidc_pm_suspend(struct device *pdev)
+static int msm_vidc_pm_suspend(struct device *dev)
 {
 	struct msm_vidc_core *core;
 
-	if (!pdev) {
-		dprintk(VIDC_ERR, "%s invalid device\n", __func__);
-		return -EINVAL;
+	if (!dev || !dev->driver) {
+		/* driver possibly not probed yet */
+		return 0;
 	}
 
-	core = (struct msm_vidc_core *)pdev->platform_data;
+	core = dev_get_drvdata(dev);
 	if (!core) {
 		dprintk(VIDC_ERR, "%s invalid core\n", __func__);
 		return -EINVAL;
 	}
-	dprintk(VIDC_INFO, "%s\n", __func__);
 
+	dprintk(VIDC_INFO, "%s\n", __func__);
 	return msm_vidc_suspend(core->id);
 }
 
