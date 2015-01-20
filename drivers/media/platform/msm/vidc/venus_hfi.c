@@ -3779,7 +3779,7 @@ static int protect_cp_mem(struct venus_hfi_device *device)
 		if (!strcmp(cb->name, "venus_ns")) {
 			desc.args[1] = memprot.cp_size =
 				cb->addr_range.start;
-			dprintk(VIDC_DBG, "%s memprot.cp_size: 0x%x\n",
+			dprintk(VIDC_DBG, "%s memprot.cp_size: %#x\n",
 				__func__, memprot.cp_size);
 		}
 
@@ -3789,7 +3789,7 @@ static int protect_cp_mem(struct venus_hfi_device *device)
 			desc.args[3] = memprot.cp_nonpixel_size =
 				cb->addr_range.size;
 			dprintk(VIDC_DBG,
-				"%s memprot.cp_start: 0x%x size: 0x%x\n",
+				"%s memprot.cp_start: %#x size: %#x\n",
 				__func__, memprot.cp_nonpixel_start,
 				memprot.cp_nonpixel_size);
 		}
