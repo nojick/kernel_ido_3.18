@@ -136,6 +136,7 @@ struct msm_vidc_platform_resources {
 	bool sys_idle_indicator;
 	struct list_head context_banks;
 	bool thermal_mitigable;
+	const char *fw_name;
 };
 
 static inline bool is_iommu_present(struct msm_vidc_platform_resources *res)
