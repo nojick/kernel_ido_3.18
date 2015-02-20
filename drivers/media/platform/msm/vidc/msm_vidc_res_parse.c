@@ -831,7 +831,7 @@ err_setup_cb:
 	return rc;
 }
 
-int msm_vidc_probe_sub_devices(struct platform_device *pdev)
+int read_context_bank_resources_from_dt(struct platform_device *pdev)
 {
 	struct msm_vidc_core *core;
 	struct device *dev;
