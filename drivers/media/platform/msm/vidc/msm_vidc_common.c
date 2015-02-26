@@ -377,22 +377,6 @@ fail_alloc:
 	return rc;
 }
 
-static void msm_comm_unvote_buses(struct msm_vidc_core *core)
-{
-	struct hfi_device *hdev;
-
-	if (!core || !core->device) {
-		dprintk(VIDC_ERR, "%s invalid parameters\n", __func__);
-		return;
-	}
-
-	hdev = core->device;
-	if (call_hfi_op(hdev, unvote_bus, hdev->hfi_device_data))
-		dprintk(VIDC_WARN,
-				"Failed to unvote for buses\n");
-
-}
-
 struct msm_vidc_core *get_vidc_core(int core_id)
 {
 	struct msm_vidc_core *core;
@@ -2069,15 +2053,7 @@ static int msm_comm_init_core(struct msm_vidc_inst *inst)
 				core->id, core->state);
 		goto core_already_inited;
 	}
-	mutex_unlock(&core->lock);
 
-	rc = msm_comm_vote_bus(core);
-	if (rc) {
-		dprintk(VIDC_ERR, "Failed to scale DDR bus: %d\n", rc);
-		goto fail_vote_bus;
-	}
-
-	mutex_lock(&core->lock);
 	if (core->state < VIDC_CORE_LOADED) {
 		rc = call_hfi_op(hdev, load_fw, hdev->hfi_device_data);
 		if (rc) {
@@ -2088,14 +2064,7 @@ static int msm_comm_init_core(struct msm_vidc_inst *inst)
 		core->state = VIDC_CORE_LOADED;
 		dprintk(VIDC_DBG, "Firmware downloaded\n");
 	}
-	mutex_unlock(&core->lock);
-	rc = msm_comm_scale_clocks(core);
-	if (rc) {
-		dprintk(VIDC_ERR, "Failed to scale clocks: %d\n", rc);
-		goto fail_core_init;
-	}
 
-	mutex_lock(&core->lock);
 	if (core->state == VIDC_CORE_LOADED) {
 		init_completion(&core->completions
 			[SYS_MSG_INDEX(SYS_INIT_DONE)]);
@@ -2120,8 +2089,6 @@ fail_core_init:
 	core->state = VIDC_CORE_UNINIT;
 	mutex_unlock(&core->lock);
 fail_load_fw:
-	msm_comm_unvote_buses(core);
-fail_vote_bus:
 	return rc;
 }
 
@@ -4359,7 +4326,6 @@ void msm_vidc_fw_unload_handler(struct work_struct *work)
 
 		call_hfi_op(hdev, unload_fw, hdev->hfi_device_data);
 		dprintk(VIDC_DBG, "Firmware unloaded\n");
-		msm_comm_unvote_buses(core);
 	}
 	mutex_unlock(&core->lock);
 }
