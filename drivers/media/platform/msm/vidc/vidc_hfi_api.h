@@ -62,6 +62,7 @@
 #define HAL_MAX_MATRIX_COEFFS 9
 #define HAL_MAX_BIAS_COEFFS 3
 #define HAL_MAX_LIMIT_COEFFS 6
+#define VENUS_VERSION_LENGTH 128
 
 enum vidc_status {
 	VIDC_ERR_NONE = 0x0,
@@ -1022,6 +1023,14 @@ struct vidc_seq_hdr {
 	u32 seq_hdr_len;
 };
 
+struct hal_fw_info {
+	char version[VENUS_VERSION_LENGTH];
+	phys_addr_t base_addr;
+	int register_base;
+	int register_size;
+	int irq;
+};
+
 enum hal_flush {
 	HAL_FLUSH_INPUT,
 	HAL_FLUSH_OUTPUT,
@@ -1317,14 +1326,6 @@ enum msm_vidc_hfi_type {
 	VIDC_HFI_Q6,
 };
 
-enum fw_info {
-	FW_BASE_ADDRESS,
-	FW_REGISTER_BASE,
-	FW_REGISTER_SIZE,
-	FW_IRQ,
-	FW_INFO_MAX,
-};
-
 enum msm_vidc_thermal_level {
 	VIDC_THERMAL_NORMAL = 0,
 	VIDC_THERMAL_LOW,
@@ -1420,7 +1421,7 @@ struct hfi_device {
 						unsigned long instant_bitrate);
 	int (*vote_bus)(void *dev, struct vidc_bus_vote_data *data,
 			int num_data);
-	int (*get_fw_info)(void *dev, enum fw_info info);
+	int (*get_fw_info)(void *dev, struct hal_fw_info *fw_info);
 	int (*session_clean)(void *sess);
 	int (*get_core_capabilities)(void *dev);
 	int (*suspend)(void *dev);
