@@ -204,7 +204,6 @@ static int msm_config_reg(struct msm_pinctrl *pctrl,
 		*mask = 1;
 		break;
 	default:
-		dev_err(pctrl->dev, "Invalid config param %04x\n", param);
 		return -ENOTSUPP;
 	}
 
@@ -275,9 +274,7 @@ static int msm_config_group_get(struct pinctrl_dev *pctldev,
 		arg = 1;
 		break;
 	default:
-		dev_err(pctrl->dev, "Unsupported config parameter: %x\n",
-			param);
-		return -EINVAL;
+		return -ENOTSUPP;
 	}
 
 	*config = pinconf_to_config_packed(param, arg);
@@ -374,6 +371,7 @@ static int msm_config_group_set(struct pinctrl_dev *pctldev,
 }
 
 static const struct pinconf_ops msm_pinconf_ops = {
+	.is_generic		= true,
 	.pin_config_group_get	= msm_config_group_get,
 	.pin_config_group_set	= msm_config_group_set,
 };
