@@ -1961,7 +1961,6 @@ static int venus_hfi_get_qdss_iommu_virtual_addr(struct venus_hfi_device *dev,
 	dma_addr_t iova = QDSS_IOVA_START;
 	int num_entries = dev->res->qdss_addr_set.count;
 	struct addr_range *qdss_addr_tbl = dev->res->qdss_addr_set.addr_tbl;
-	phys_addr_t phys;
 
 	if (!num_entries)
 		return -ENODATA;
@@ -1980,11 +1979,6 @@ static int venus_hfi_get_qdss_iommu_virtual_addr(struct venus_hfi_device *dev,
 				rc = -ENOMEM;
 				break;
 			}
-			phys = iommu_iova_to_phys(mapping->domain, iova);
-			dprintk(VIDC_ERR,
-				"%s: iova_to_phys : mapped: 0x%x, got: %pa\n",
-				__func__, qdss_addr_tbl[i][0],
-				&phys);
 		} else {
 			iova =  qdss_addr_tbl[i].start;
 		}
