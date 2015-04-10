@@ -1175,18 +1175,6 @@ static int venus_hfi_alloc_imem(void *dev, unsigned long size)
 	}
 
 	switch (device->res->imem_type) {
-	case IMEM_OCMEM:
-	{
-		struct ocmem_buf *ocmem_buffer =
-			ocmem_allocate(OCMEM_VIDEO, size);
-		if (IS_ERR_OR_NULL(ocmem_buffer)) {
-			rc = PTR_ERR(ocmem_buffer) ?: -ENOMEM;
-			goto imem_alloc_failed;
-		}
-
-		imem->ocmem.buf = ocmem_buffer;
-		break;
-	}
 	case IMEM_VMEM:
 	{
 		phys_addr_t vmem_buffer = 0;
@@ -1234,14 +1222,6 @@ static int venus_hfi_free_imem(struct venus_hfi_device *device)
 	case IMEM_NONE:
 		/* Follow the semantics of free(NULL), which is a no-op. */
 		break;
-	case IMEM_OCMEM:
-		rc = ocmem_free(OCMEM_VIDEO, imem->ocmem.buf);
-		if (rc) {
-			dprintk(VIDC_ERR, "Failed to free ocmem\n");
-			goto imem_free_failed;
-		}
-
-		break;
 	case IMEM_VMEM:
 		vmem_free(imem->vmem);
 		break;
@@ -1275,19 +1255,6 @@ static int venus_hfi_set_imem(struct venus_hfi_device *device,
 	rhdr.resource_id = VIDC_RESOURCE_NONE;
 
 	switch (imem->type) {
-	case IMEM_OCMEM:
-		rhdr.resource_id = VIDC_RESOURCE_OCMEM;
-		addr = imem->ocmem.buf->addr;
-		/* Just for sanity */
-		if (imem->ocmem.buf->len != rhdr.size) {
-			dprintk(VIDC_ERR,
-				"ocmem buffer size unexpectedly small (expected %d, have %lu)\n",
-				rhdr.size, imem->ocmem.buf->len);
-			rc = -EINVAL;
-			goto imem_set_failed;
-		}
-
-		break;
 	case IMEM_VMEM:
 		rhdr.resource_id = VIDC_RESOURCE_VMEM;
 		addr = imem->vmem;
@@ -1353,10 +1320,6 @@ static int venus_hfi_unset_imem(struct venus_hfi_device *device)
 
 	imem = &device->resources.imem;
 	switch (imem->type) {
-	case IMEM_OCMEM:
-		rhdr.resource_id = VIDC_RESOURCE_OCMEM;
-		addr = imem->ocmem.buf->addr;
-		break;
 	case IMEM_VMEM:
 		rhdr.resource_id = VIDC_RESOURCE_VMEM;
 		addr = imem->vmem;
