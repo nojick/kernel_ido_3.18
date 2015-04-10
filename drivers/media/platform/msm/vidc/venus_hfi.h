@@ -19,7 +19,6 @@
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
 #include <linux/spinlock.h>
-#include <linux/msm_iommu_domains.h>
 #include "vmem/vmem.h"
 #include "vidc_hfi_api.h"
 #include "vidc_hfi_helper.h"
