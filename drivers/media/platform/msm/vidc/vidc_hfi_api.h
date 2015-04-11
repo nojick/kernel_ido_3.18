@@ -1323,7 +1323,6 @@ struct msm_vidc_cb_info {
 
 enum msm_vidc_hfi_type {
 	VIDC_HFI_VENUS,
-	VIDC_HFI_Q6,
 };
 
 enum msm_vidc_thermal_level {
