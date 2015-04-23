@@ -692,6 +692,9 @@ int read_platform_resources_from_dt(
 	dprintk(VIDC_DBG, "Power collapse supported = %s\n",
 		res->sw_power_collapsible ? "yes" : "no");
 
+	res->never_unload_fw = of_property_read_bool(pdev->dev.of_node,
+			"qcom,never-unload-fw");
+
 	res->slave_side_cp = of_property_read_bool(pdev->dev.of_node,
 					"qcom,slave-side-cp");
 	dprintk(VIDC_DBG, "Slave side cp = %s\n",
