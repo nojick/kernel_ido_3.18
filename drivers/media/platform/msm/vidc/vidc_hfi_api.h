@@ -222,6 +222,7 @@ enum hal_property {
 	HAL_PARAM_VDEC_NON_SECURE_OUTPUT2,
 	HAL_PARAM_VENC_HIER_P_HYBRID_MODE,
 	HAL_PARAM_SYNC_BASED_INTERRUPT,
+	HAL_CONFIG_VDEC_ENTROPY,
 	HAL_PARAM_VENC_CONSTRAINED_INTRA_PRED,
 	HAL_PARAM_VENC_VIDEO_SIGNAL_INFO,
 };
@@ -1115,7 +1116,6 @@ union hal_get_property {
 	struct hal_bitrate bitrate;
 	struct hal_profile_level profile_level;
 	struct hal_profile_level_supported profile_level_supported;
-	struct hal_h264_entropy_control h264_entropy_control;
 	struct hal_mpeg4_time_resolution mpeg4_time_resolution;
 	struct hal_mpeg4_header_extension mpeg4_header_extension;
 	struct hal_h264_db_control h264_db_control;
@@ -1148,6 +1148,7 @@ union hal_get_property {
 	struct hal_buffer_info buffer_info;
 	struct hal_buffer_alloc_mode buffer_alloc_mode;
 	struct buffer_requirements buf_req;
+	enum hal_h264_entropy h264_entropy;
 };
 
 /* HAL Response */
