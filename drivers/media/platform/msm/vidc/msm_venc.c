@@ -161,6 +161,12 @@ static const char *const perf_level[] = {
 	"Turbo"
 };
 
+static const char *const mbi_statistics[] = {
+	"Camcorder Default",
+	"Mode 1",
+	"Mode 2"
+};
+
 static const char *const intra_refresh_modes[] = {
 	"None",
 	"Cyclic",
@@ -1044,6 +1050,20 @@ static struct msm_vidc_ctrl msm_venc_ctrls[] = {
 		.qmenu = NULL,
 	},
 	{
+		.id = V4L2_CID_MPEG_VIDC_VIDEO_MBI_STATISTICS_MODE,
+		.name = "MBI Statistics Mode",
+		.type = V4L2_CTRL_TYPE_MENU,
+		.minimum = V4L2_CID_MPEG_VIDC_VIDEO_MBI_MODE_DEFAULT,
+		.maximum = V4L2_CID_MPEG_VIDC_VIDEO_MBI_MODE_2,
+		.default_value = V4L2_CID_MPEG_VIDC_VIDEO_MBI_MODE_DEFAULT,
+		.menu_skip_mask = ~(
+			(1 << V4L2_CID_MPEG_VIDC_VIDEO_MBI_MODE_DEFAULT) |
+			(1 << V4L2_CID_MPEG_VIDC_VIDEO_MBI_MODE_1) |
+			(1 << V4L2_CID_MPEG_VIDC_VIDEO_MBI_MODE_2)),
+		.qmenu = mbi_statistics,
+		.step = 1,
+	},
+	{
 		.id = V4L2_CID_MPEG_VIDC_VIDEO_PRIORITY,
 		.name = "Session Priority",
 		.type = V4L2_CTRL_TYPE_INTEGER,
@@ -1912,7 +1932,7 @@ static int try_set_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 	struct hal_ltr_mark mark_ltr;
 	struct hal_hybrid_hierp hyb_hierp;
 	struct hal_video_signal_info signal_info = {0};
-	u32 hier_p_layers = 0, hier_b_layers = 0;
+	u32 hier_p_layers = 0, hier_b_layers = 0, mbi_statistics_mode = 0;
 	struct hal_venc_perf_mode venc_mode;
 
 	if (!inst || !inst->core || !inst->core->device) {
@@ -2812,6 +2832,11 @@ static int try_set_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 		property_id = HAL_PARAM_VENC_HIER_P_HYBRID_MODE;
 		hyb_hierp.layers = ctrl->val;
 		pdata = &hyb_hierp;
+		break;
+	case V4L2_CID_MPEG_VIDC_VIDEO_MBI_STATISTICS_MODE:
+		property_id = HAL_PARAM_VENC_MBI_STATISTICS_MODE;
+		mbi_statistics_mode = ctrl->val;
+		pdata = &mbi_statistics_mode;
 		break;
 	case V4L2_CID_MPEG_VIDC_VIDEO_PRIORITY:
 		property_id = HAL_CONFIG_REALTIME;
