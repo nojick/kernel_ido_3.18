@@ -78,4 +78,15 @@ int msm_comm_smem_get_domain_partition(struct msm_vidc_inst *inst,
 enum hal_video_codec get_hal_codec_type(int fourcc);
 int msm_comm_load_fw(struct msm_vidc_core *core);
 int msm_comm_check_core_init(struct msm_vidc_core *core);
+<<<<<<< HEAD
+=======
+int msm_comm_get_inst_load(struct msm_vidc_inst *inst,
+			enum load_calc_quirks quirks);
+int msm_comm_get_load(struct msm_vidc_core *core,
+			enum session_type type, enum load_calc_quirks quirks);
+int msm_comm_set_color_format(struct msm_vidc_inst *inst,
+		enum hal_buffer buffer_type, int fourcc);
+int msm_comm_g_ctrl(struct msm_vidc_inst *inst, int id);
+void msm_comm_cleanup_internal_buffers(struct msm_vidc_inst *inst);
+>>>>>>> d7af3836aa919 (msm: vidc: Remove the redundant command handling)
 #endif
