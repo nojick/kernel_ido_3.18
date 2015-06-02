@@ -566,7 +566,8 @@ struct hfi_nal_stream_format_select {
 #define HFI_PICTURE_TYPE_I					0x01
 #define HFI_PICTURE_TYPE_P					0x02
 #define HFI_PICTURE_TYPE_B					0x04
-#define HFI_PICTURE_TYPE_IDR				0x08
+#define HFI_PICTURE_TYPE_IDR					0x08
+#define HFI_PICTURE_TYPE_CRA					0x10
 
 struct hfi_profile_level {
 	u32 profile;
@@ -642,6 +643,11 @@ struct hfi_h264_vui_timing_info {
 	u32 enable;
 	u32 fixed_frame_rate;
 	u32 time_scale;
+};
+
+struct hfi_picture_type {
+	u32 is_sync_frame;
+	u32 picture_type;
 };
 
 /* Base Offset for UBWC color formats  */
