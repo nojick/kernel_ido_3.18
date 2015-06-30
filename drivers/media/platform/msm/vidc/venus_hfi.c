@@ -3541,6 +3541,12 @@ static int __response_handler(struct venus_hfi_device *device)
 		case HAL_SYS_PC_PREP_DONE:
 			dprintk(VIDC_DBG, "Received SYS_PC_PREP_DONE\n");
 			complete(&pc_prep_done);
+			/*
+			 * PC_PREP_DONE should be the last packet during
+			 * power collapse, so decrement the packet count
+			 * to not process this pkt in callback
+			 */
+			--packet_count;
 			break;
 		default:
 			break;
