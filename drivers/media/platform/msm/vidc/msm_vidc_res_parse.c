@@ -757,7 +757,7 @@ static int msm_vidc_setup_context_bank(struct context_bank_info *cb,
 		struct device *dev)
 {
 	int rc = 0;
-	bool disable_htw = true;
+	int disable_htw = 1;
 	int secure_vmid = VMID_INVAL;
 	struct bus_type *bus;
 
