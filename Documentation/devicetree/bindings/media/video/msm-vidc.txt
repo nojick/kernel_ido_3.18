@@ -237,7 +237,6 @@ Example:
 		clock-names = "foo_clk", "bar_clk", "baz_clk";
 		qcom,clock-configs = <0x3 0x1 0x0>;
 		qcom,sw-power-collapse;
-		qcom,early-fw-load;
 		qcom,enable-idle-indicator;
 		qcom,buffer-type-tz-usage-table = <0x1 0x1>,
 						<0x1fe 0x2>;
