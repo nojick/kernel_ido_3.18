@@ -4158,6 +4158,10 @@ static int __disable_regulators(struct venus_hfi_device *device)
 static int __venus_power_on(struct venus_hfi_device *device)
 {
 	int rc = 0;
+
+	if (device->power_enabled)
+		return 0;
+
 	device->power_enabled = true;
 	/* Vote for all hardware resources */
 	rc = __vote_buses(device, device->bus_vote.data,
@@ -4212,6 +4216,9 @@ fail_vote_buses:
 
 static void __venus_power_off(struct venus_hfi_device *device)
 {
+	if (!device->power_enabled)
+		return;
+
 	if (!(device->intr_status & VIDC_WRAPPER_INTR_STATUS_A2HWD_BMSK))
 		disable_irq_nosync(device->hal_data->irq);
 	device->intr_status = 0;
