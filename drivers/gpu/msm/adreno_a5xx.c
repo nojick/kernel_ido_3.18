@@ -549,6 +549,10 @@ static void a5xx_init(struct adreno_device *adreno_dev)
 		INIT_WORK(&adreno_dev->gpmu_work, a5xx_gpmu_reset);
 
 	INIT_WORK(&adreno_dev->irq_storm_work, a5xx_irq_storm_worker);
+
+	if (ADRENO_QUIRK(adreno_dev, ADRENO_QUIRK_CRITICAL_PACKETS))
+		a5xx_critical_packet_construct(adreno_dev);
+
 	a5xx_crashdump_init(adreno_dev);
 }
 
@@ -2369,6 +2373,36 @@ static int a5xx_switch_to_unsecure_mode(struct adreno_device *adreno_dev,
 		struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 
 		dev_err(device->dev, "Switch to unsecure failed to idle\n");
+		spin_idle_debug(device);
+		kgsl_device_snapshot(device, NULL);
+	}
+
+	return ret;
+}
+
+static int a5xx_critical_packet_submit(struct adreno_device *adreno_dev,
+					struct adreno_ringbuffer *rb)
+{
+	unsigned int *cmds;
+	int ret;
+
+	if (!critical_packet_constructed)
+		return 0;
+
+	cmds = adreno_ringbuffer_allocspace(rb, 4);
+	if (IS_ERR(cmds))
+		return PTR_ERR(cmds);
+
+	*cmds++ = cp_mem_packet(adreno_dev, CP_INDIRECT_BUFFER_PFE, 2, 1);
+	cmds += cp_gpuaddr(adreno_dev, cmds, crit_pkts.gpuaddr);
+	*cmds++ = crit_pkts_dwords;
+
+	ret = adreno_ringbuffer_submit_spin(rb, NULL, 20);
+	if (ret != 0) {
+		struct kgsl_device *device = &adreno_dev->dev;
+
+		dev_err(device->dev,
+			"Critical packet submission failed to idle\n");
 		spin_idle_debug(device);
 		kgsl_device_snapshot(device, NULL);
 	}
