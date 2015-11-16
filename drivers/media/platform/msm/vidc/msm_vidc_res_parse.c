@@ -696,6 +696,12 @@ int read_platform_resources_from_dt(
 	res->never_unload_fw = of_property_read_bool(pdev->dev.of_node,
 			"qcom,never-unload-fw");
 
+
+	res->slave_side_cp = of_property_read_bool(pdev->dev.of_node,
+					"qcom,slave-side-cp");
+	dprintk(VIDC_DBG, "Slave side cp = %s\n",
+				res->slave_side_cp ? "yes" : "no");
+
 	return rc;
 
 err_setup_legacy_cb:
