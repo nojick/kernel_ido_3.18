@@ -37,6 +37,13 @@
 #define BTSCO_RATE_16KHZ 16000
 #define MAX_SND_CARDS 3
 
+#define SAMPLING_RATE_8KHZ      8000
+#define SAMPLING_RATE_16KHZ     16000
+#define SAMPLING_RATE_32KHZ     32000
+#define SAMPLING_RATE_48KHZ     48000
+#define SAMPLING_RATE_96KHZ     96000
+#define SAMPLING_RATE_192KHZ    192000
+
 #define PRI_MI2S_ID	(1 << 0)
 #define SEC_MI2S_ID	(1 << 1)
 #define TER_MI2S_ID	(1 << 2)
@@ -62,6 +69,7 @@ static int msm_btsco_ch = 1;
 
 static int msm_ter_mi2s_tx_ch = 1;
 static int msm_pri_mi2s_rx_ch = 1;
+static int pri_rx_sample_rate = SAMPLING_RATE_48KHZ;
 
 static int msm_proxy_rx_ch = 2;
 static int msm8909_auxpcm_rate = 8000;
@@ -244,6 +252,7 @@ static struct cdc_pdm_pinctrl_info pinctrl_info;
 struct ext_cdc_tlmm_pinctrl_info ext_cdc_pinctrl_info;
 
 static int mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S16_LE;
+static int bits_per_sample = 16;
 
 static inline int param_is_mask(int p)
 {
@@ -288,6 +297,10 @@ static const char *const ter_mi2s_tx_ch_text[] = {"One", "Two"};
 static const char *const loopback_mclk_text[] = {"DISABLE", "ENABLE"};
 static const char *const lineout_text[] = {"DISABLE", "ENABLE", "DUALMODE"};
 static const char *const hs_amp_text[] = {"DISABLE", "ENABLE"};
+static char const *pri_rx_sample_rate_text[] = {"KHZ_48", "KHZ_96",
+					"KHZ_192", "KHZ_8",
+					"KHZ_16", "KHZ_32"};
+
 static int msm_auxpcm_be_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
 {
@@ -339,9 +352,9 @@ static int msm_pri_rx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	struct snd_interval *channels = hw_param_interval(params,
 					SNDRV_PCM_HW_PARAM_CHANNELS);
 
-	pr_debug("%s: Number of channels = %d\n", __func__,
-			msm_pri_mi2s_rx_ch);
-	rate->min = rate->max = 48000;
+	pr_debug("%s: Number of channels = %d Sample rate = %d \n", __func__,
+			msm_pri_mi2s_rx_ch, pri_rx_sample_rate);
+	rate->min = rate->max =  pri_rx_sample_rate;
 	channels->min = channels->max = msm_pri_mi2s_rx_ch;
 
 	return 0;
@@ -391,10 +404,12 @@ static int mi2s_rx_bit_format_put(struct snd_kcontrol *kcontrol,
 	switch (ucontrol->value.integer.value[0]) {
 	case 1:
 		mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S24_LE;
+		bits_per_sample = 32;
 		break;
 	case 0:
 	default:
 		mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S16_LE;
+		bits_per_sample = 16;
 		break;
 	}
 	return 0;
@@ -555,6 +570,68 @@ static int msm_pri_mi2s_rx_ch_put(struct snd_kcontrol *kcontrol,
 
 	pr_debug("%s: msm_pri_mi2s_rx_ch = %d\n", __func__, msm_pri_mi2s_rx_ch);
 	return 1;
+}
+
+static int pri_rx_sample_rate_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	int sample_rate_val = 0;
+
+	switch (pri_rx_sample_rate) {
+	case SAMPLING_RATE_32KHZ:
+		sample_rate_val = 5;
+		break;
+	case SAMPLING_RATE_16KHZ:
+		sample_rate_val = 4;
+		break;
+	case SAMPLING_RATE_8KHZ:
+		sample_rate_val = 3;
+		break;
+	case SAMPLING_RATE_192KHZ:
+		sample_rate_val = 2;
+		break;
+	case SAMPLING_RATE_96KHZ:
+		sample_rate_val = 1;
+		break;
+	case SAMPLING_RATE_48KHZ:
+	default:
+		sample_rate_val = 0;
+		break;
+	}
+
+	ucontrol->value.integer.value[0] = sample_rate_val;
+	pr_debug("%s: sample_rate_val = %d\n", __func__,
+		 sample_rate_val);
+
+	return 0;
+}
+
+static int pri_rx_sample_rate_put(struct snd_kcontrol *kcontrol,
+				    struct snd_ctl_elem_value *ucontrol)
+{
+	switch (ucontrol->value.integer.value[0]) {
+	case 5:
+		pri_rx_sample_rate = SAMPLING_RATE_32KHZ;
+		break;
+	case 4:
+		pri_rx_sample_rate = SAMPLING_RATE_16KHZ;
+		break;
+	case 3:
+		pri_rx_sample_rate = SAMPLING_RATE_8KHZ;
+		break;
+	case 2:
+		pri_rx_sample_rate = SAMPLING_RATE_192KHZ;
+		break;
+	case 1:
+		pri_rx_sample_rate = SAMPLING_RATE_96KHZ;
+		break;
+	case 0:
+	default:
+		pri_rx_sample_rate = SAMPLING_RATE_48KHZ;
+	}
+	pr_debug("%s: pri_rx_sample_rate = %d\n", __func__,
+		 pri_rx_sample_rate);
+	return 0;
 }
 
 static int msm_ter_mi2s_tx_ch_get(struct snd_kcontrol *kcontrol,
@@ -1002,6 +1079,7 @@ static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, loopback_mclk_text),
 	SOC_ENUM_SINGLE_EXT(3, lineout_text),
 	SOC_ENUM_SINGLE_EXT(2, hs_amp_text)
+	SOC_ENUM_SINGLE_EXT(6, pri_rx_sample_rate_text),
 };
 
 static const char *const btsco_rate_text[] = {"8000", "16000"};
@@ -1024,6 +1102,8 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			lineout_status_get, lineout_status_put),
 	SOC_ENUM_EXT("headset amp", msm_snd_enum[4],
 			headset_status_get, headset_status_put),
+	SOC_ENUM_EXT("RX SampleRate", msm_snd_enum[3],
+			pri_rx_sample_rate_get, pri_rx_sample_rate_put),
 };
 
 static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
