@@ -848,8 +848,8 @@ static int __vote_buses(struct venus_hfi_device *device,
 	struct vidc_bus_vote_data *new_data = NULL;
 
 	if (!num_data) {
-		/* Meh nothing to do */
-		return 0;
+		dprintk(VIDC_DBG, "No vote data available\n");
+		goto no_data_count;
 	} else if (!data) {
 		dprintk(VIDC_ERR, "Invalid voting data\n");
 		return -EINVAL;
@@ -862,6 +862,7 @@ static int __vote_buses(struct venus_hfi_device *device,
 		goto err_no_mem;
 	}
 
+no_data_count:
 	kfree(device->bus_vote.data);
 	device->bus_vote.data = new_data;
 	device->bus_vote.data_count = num_data;
