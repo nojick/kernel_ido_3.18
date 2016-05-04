@@ -433,7 +433,7 @@ static int pil_mba_mem_driver_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id mba_mem_match_table[] = {
+static const struct of_device_id mba_mem_match_table[] = {
 	{ .compatible = "qcom,pil-mba-mem" },
 	{}
 };
