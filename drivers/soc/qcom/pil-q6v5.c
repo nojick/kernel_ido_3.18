@@ -91,13 +91,14 @@ int pil_q6v5_make_proxy_votes(struct pil_desc *pil)
 
 	ret = of_property_read_u32(pil->dev->of_node, "vdd_cx-voltage", &uv);
 	if (ret) {
-		dev_err(pil->dev, "missing vdd_cx-voltage property\n");
+		dev_err(pil->dev, "missing vdd_cx-voltage property(rc:%d)\n",
+								ret);
 		return ret;
 	}
 
 	ret = clk_prepare_enable(drv->xo);
 	if (ret) {
-		dev_err(pil->dev, "Failed to vote for XO\n");
+		dev_err(pil->dev, "Failed to vote for XO(rc:%d)\n", ret);
 		goto out;
 	}
 
@@ -109,38 +110,40 @@ int pil_q6v5_make_proxy_votes(struct pil_desc *pil)
 
 	ret = clk_prepare_enable(drv->pnoc_clk);
 	if (ret) {
-		dev_err(pil->dev, "Failed to vote for pnoc\n");
+		dev_err(pil->dev, "Failed to vote for pnoc(rc:%d)\n", ret);
 		goto err_pnoc_vote;
 	}
 
 	ret = clk_prepare_enable(drv->qdss_clk);
 	if (ret) {
-		dev_err(pil->dev, "Failed to vote for qdss\n");
+		dev_err(pil->dev, "Failed to vote for qdss(rc:%d)\n", ret);
 		goto err_qdss_vote;
 	}
 
 	ret = regulator_set_voltage(drv->vreg_cx, uv, INT_MAX);
 	if (ret) {
-		dev_err(pil->dev, "Failed to request vdd_cx voltage.\n");
+		dev_err(pil->dev, "Failed to request vdd_cx voltage(rc:%d)\n",
+								ret);
 		goto err_cx_voltage;
 	}
 
 	ret = regulator_set_optimum_mode(drv->vreg_cx, 100000);
 	if (ret < 0) {
-		dev_err(pil->dev, "Failed to set vdd_cx mode.\n");
+		dev_err(pil->dev, "Failed to set vdd_cx mode(rc:%d)\n", ret);
 		goto err_cx_mode;
 	}
 
 	ret = regulator_enable(drv->vreg_cx);
 	if (ret) {
-		dev_err(pil->dev, "Failed to vote for vdd_cx\n");
+		dev_err(pil->dev, "Failed to vote for vdd_cx(rc:%d)\n", ret);
 		goto err_cx_enable;
 	}
 
 	if (drv->vreg_pll) {
 		ret = regulator_enable(drv->vreg_pll);
 		if (ret) {
-			dev_err(pil->dev, "Failed to vote for vdd_pll\n");
+			dev_err(pil->dev, "Failed to vote for vdd_pll(rc:%d)\n",
+									ret);
 			goto err_vreg_pll;
 		}
 	}
@@ -173,7 +176,8 @@ void pil_q6v5_remove_proxy_votes(struct pil_desc *pil)
 
 	ret = of_property_read_u32(pil->dev->of_node, "vdd_cx-voltage", &uv);
 	if (ret) {
-		dev_err(pil->dev, "missing vdd_cx-voltage property\n");
+		dev_err(pil->dev, "missing vdd_cx-voltage property(rc:%d)\n",
+									ret);
 		return;
 	}
 
