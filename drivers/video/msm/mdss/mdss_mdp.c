@@ -2264,6 +2264,8 @@ static void __update_sspp_info(struct mdss_mdp_pipe *pipe,
 	size_t len = PAGE_SIZE;
 	int num_bytes = BITS_TO_BYTES(MDP_IMGTYPE_LIMIT1);
 
+	if (!pipe)
+		return;
 #define SPRINT(fmt, ...) \
 		(*cnt += scnprintf(buf + *cnt, len - *cnt, fmt, ##__VA_ARGS__))
 
