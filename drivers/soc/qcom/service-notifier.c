@@ -226,7 +226,7 @@ static void send_ind_ack(struct work_struct *work)
 	if (QMI_RESP_BIT_SHIFT(resp.resp.result) != QMI_RESULT_SUCCESS_V01)
 		pr_err("QMI request failed 0x%x\n",
 			QMI_RESP_BIT_SHIFT(resp.resp.error));
-	pr_debug("Indication ACKed for transid %d, service %s, instance %d!\n",
+	pr_info("Indication ACKed for transid %d, service %s, instance %d!\n",
 		data->ind_msg.transaction_id, data->ind_msg.service_path,
 		data->instance_id);
 exit:
@@ -252,7 +252,7 @@ static void root_service_service_ind_cb(struct qmi_handle *handle,
 		goto send_ind_resp;
 	}
 
-	pr_debug("Indication received from %s, state: 0x%x, trans-id: %d\n",
+	pr_info("Indication received from %s, state: 0x%x, trans-id: %d\n",
 		ind_msg.service_name, ind_msg.curr_state,
 		ind_msg.transaction_id);
 
