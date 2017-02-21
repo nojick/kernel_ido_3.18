@@ -1017,6 +1017,7 @@ out:
 					&desc->attrs);
 			priv->region = NULL;
 		}
+		pil_clear_segment(desc);
 		pil_release_mmap(desc);
 	}
 	return ret;
