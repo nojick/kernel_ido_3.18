@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -583,7 +583,11 @@ int pil_mss_reset_load_mba(struct pil_desc *pil)
 	}
 
 	drv->mba_dp_size = SZ_1M;
+
+	arch_setup_dma_ops(dma_dev, 0, 0, NULL, 0);
+
 	dma_dev->coherent_dma_mask = DMA_BIT_MASK(32);
+
 	init_dma_attrs(&md->attrs_dma);
 	dma_set_attr(DMA_ATTR_SKIP_ZEROING, &md->attrs_dma);
 	dma_set_attr(DMA_ATTR_STRONGLY_ORDERED, &md->attrs_dma);
@@ -606,7 +610,7 @@ int pil_mss_reset_load_mba(struct pil_desc *pil)
 	mba_dp_virt = dma_alloc_attrs(dma_dev, drv->mba_dp_size, &mba_dp_phys,
 				   GFP_KERNEL, &md->attrs_dma);
 	if (!mba_dp_virt) {
-		dev_err(pil->dev, "%s MBA metadata buffer allocation %zx bytes failed\n",
+		dev_err(pil->dev, "%s MBA/DP buffer allocation %zx bytes failed\n",
 				 __func__, drv->mba_dp_size);
 		ret = -ENOMEM;
 		goto err_invalid_fw;
@@ -688,8 +692,8 @@ static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
 	dma_addr_t mdata_phys;
 	s32 status;
 	int ret;
-	struct device *dma_dev = drv->mba_mem_dev_fixed ?: &drv->mba_mem_dev;
 	u64 val = is_timeout_disabled() ? 0 : modem_auth_timeout_ms * 1000;
+	struct device *dma_dev = drv->mba_mem_dev_fixed ?: &drv->mba_mem_dev;
 	DEFINE_DMA_ATTRS(attrs);
 
 
@@ -712,7 +716,7 @@ static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
 
 	if (pil->subsys_vmid > 0) {
 		/**
-		  * In case of modem ssr, we need to assign memory back to linux.
+		  * In case of modem ssr,we need to assign memory back to linux.
 		  * This is not true after cold boot since linux already owns
 		  * it. Also for secure boot devices, modem memory has to be
 		  * released after MBA is booted
@@ -729,8 +733,8 @@ static int pil_msa_auth_modem_mdt(struct pil_desc *pil, const u8 *metadata,
 		if (ret) {
 			pr_err("scm_call to unprotect modem metadata mem failed(rc:%d)\n",
 									ret);
-			dma_free_attrs(dma_dev, size, mdata_virt,
-							mdata_phys, &attrs);
+			dma_free_attrs(dma_dev, size, mdata_virt, mdata_phys,
+									&attrs);
 			goto fail;
 		}
 	}

@@ -791,7 +791,7 @@ static int pil_load_seg(struct pil_desc *desc, struct pil_seg *seg)
 
 	if (desc->ops->verify_blob) {
 		ret = desc->ops->verify_blob(desc, seg->paddr, seg->sz);
-		if (ret)
+		if (ret) {
 			pil_err(desc, "Blob%u failed verification(rc:%d)\n",
 								num, ret);
 			subsys_set_error(desc->subsys_dev, firmware_error_msg);
@@ -800,7 +800,6 @@ static int pil_load_seg(struct pil_desc *desc, struct pil_seg *seg)
 
 	return ret;
 }
-
 static int pil_parse_devicetree(struct pil_desc *desc)
 {
 	struct device_node *ofnode = desc->dev->of_node;
