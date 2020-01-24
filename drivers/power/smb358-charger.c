@@ -2879,7 +2879,7 @@ static int smb358_charger_probe(struct i2c_client *client,
 				irq, rc);
 			goto fail_irq_gpio;
 		}
-		enable_irq_wake(irq);
+		enable_irq_wake(client->irq);
 	} else {
 		goto fail_irq_gpio;
 	}
