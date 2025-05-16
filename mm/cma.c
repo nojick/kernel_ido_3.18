@@ -381,9 +381,6 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
 
 	if (!count)
 		return NULL;
-	
-	if (count > cma->count)
-		return 0;
 
 	trace_cma_alloc_start(count, align);
 

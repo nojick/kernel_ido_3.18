@@ -58,9 +58,6 @@
 	(cond) ? 0 : -ETIMEDOUT; \
 })
 
-#define readl_tight_poll_timeout(addr, val, cond, timeout_us) \
-	readl_poll_timeout(addr, val, cond, 0, timeout_us)
-
 /**
  * readx_poll_timeout_atomic - Periodically poll an address until a condition is met or a timeout occurs
  * @op: accessor function (takes @addr as its only argument)

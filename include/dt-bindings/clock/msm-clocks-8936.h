@@ -165,6 +165,8 @@
 #define clk_gcc_mdss_esc0_clk			0xaec5cb25
 #define clk_gcc_mdss_esc1_clk                   0xc8b33763
 #define clk_gcc_mdss_mdp_clk			0x22f3521f
+#define clk_gcc_mdss_mdp_vote_clk		0x588460a4
+#define clk_gcc_mdss_mdp_rotator_vote_clk	0x5b1f675e
 #define clk_gcc_mdss_pclk0_clk			0xcc5c5c77
 #define clk_gcc_mdss_pclk1_clk                  0x1de4a617
 #define clk_gcc_mdss_vsync_clk			0x32a09f1f
@@ -258,7 +260,4 @@
 #define clk_rpm_debug_mux			0x25cd1f3a
 #define clk_wcnss_m_clk				0x709f430b
 
-#define clk_a53_lc_clk				0xc69f0878
-#define clk_a53_bc_clk				0xcf28e63a
-#define clk_cci_clk                             0x96854074
 #endif

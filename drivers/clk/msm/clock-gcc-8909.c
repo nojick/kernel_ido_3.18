@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -614,6 +614,18 @@ static struct rcg_clk blsp1_qup1_spi_apps_clk_src = {
 	},
 };
 
+static struct clk_freq_tbl ftbl_gcc_blsp1_qup2_spi_apps_clk[] = {
+	F( 960000,	xo,	10,	1,	2),
+	F( 4800000,	xo,	4,	0,	0),
+	F( 8000000,	gpll0,	10,	1,	10),
+	F( 9600000,	xo,	2,	0,	0),
+	F( 16000000,	gpll0,	10,	1,	5),
+	F( 19200000,	xo,	1,	0,	0),
+	F( 25000000,	gpll0,	16,	1,	2),
+	F( 50000000,	gpll0,	16,	0,	0),
+	F_END
+};
+
 static struct rcg_clk blsp1_qup2_i2c_apps_clk_src = {
 	.cmd_rcgr_reg = BLSP1_QUP2_I2C_APPS_CMD_RCGR,
 	.set_rate = set_rate_hid,
@@ -631,7 +643,7 @@ static struct rcg_clk blsp1_qup2_i2c_apps_clk_src = {
 static struct rcg_clk blsp1_qup2_spi_apps_clk_src = {
 	.cmd_rcgr_reg =  BLSP1_QUP2_SPI_APPS_CMD_RCGR,
 	.set_rate = set_rate_mnd,
-	.freq_tbl = ftbl_gcc_blsp1_qup1_6_spi_apps_clk,
+	.freq_tbl = ftbl_gcc_blsp1_qup2_spi_apps_clk,
 	.current_freq = &rcg_dummy_freq,
 	.base = &virt_bases[GCC_BASE],
 	.c = {
@@ -922,7 +934,8 @@ static struct rcg_clk crypto_clk_src = {
 };
 
 static struct clk_freq_tbl ftbl_gcc_gp1_3_clk[] = {
-	F( 19200000,	xo,	1,	0,	0),
+	F(   150000,    xo,     1,      1,      128),
+	F( 19200000,	xo,	1,	0,	  0),
 	F_END
 };
 
@@ -2727,10 +2740,6 @@ static int msm_gcc_probe(struct platform_device *pdev)
 					"qcom,dev-opp-list", node);
 	}
 
-	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
-	if (ret)
-		return ret;
-
 	dev_info(&pdev->dev, "Registered GCC clocks\n");
 
 	return 0;
@@ -2750,78 +2759,9 @@ static struct platform_driver msm_clock_gcc_driver = {
 	},
 };
 
-static int msm_gcc_spm_probe(struct platform_device *pdev)
-{
-	struct resource *res = NULL;
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spm_c0_base");
-	if (!res) {
-		dev_err(&pdev->dev, "SPM register base not defined for c0\n");
-		return -ENOMEM;
-	}
-
-	a53ss_c0_pll.spm_ctrl.spm_base = devm_ioremap(&pdev->dev, res->start,
-						resource_size(res));
-	if (!a53ss_c0_pll.spm_ctrl.spm_base) {
-		dev_err(&pdev->dev, "Failed to ioremap c0 spm registers\n");
-		return -ENOMEM;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "spm_c1_base");
-	if (!res) {
-		dev_err(&pdev->dev, "SPM register base not defined for c1\n");
-		return -ENOMEM;
-	}
-
-	a53ss_c1_pll.spm_ctrl.spm_base = devm_ioremap(&pdev->dev, res->start,
-						resource_size(res));
-	if (!a53ss_c1_pll.spm_ctrl.spm_base) {
-		dev_err(&pdev->dev, "Failed to ioremap c1 spm registers\n");
-		return -ENOMEM;
-	}
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						"spm_cci_base");
-	if (!res) {
-		dev_err(&pdev->dev, "SPM register base not defined for cci\n");
-		return -ENOMEM;
-	}
-
-	a53ss_cci_pll.spm_ctrl.spm_base = devm_ioremap(&pdev->dev, res->start,
-						resource_size(res));
-	if (!a53ss_cci_pll.spm_ctrl.spm_base) {
-		dev_err(&pdev->dev, "Failed to ioremap cci spm registers\n");
-		return -ENOMEM;
-	}
-
-	dev_info(&pdev->dev, "Registered GCC SPM clocks\n");
-
-	return 0;
-}
-
-static struct of_device_id msm_clock_spm_match_table[] = {
-	{ .compatible = "qcom,gcc-spm-8952" },
-	{}
-};
-
-static struct platform_driver msm_clock_spm_driver = {
-	.probe = msm_gcc_spm_probe,
-	.driver = {
-		.name = "qcom,gcc-spm-8952",
-		.of_match_table = msm_clock_spm_match_table,
-		.owner = THIS_MODULE,
-	},
-};
-
 static int __init msm_gcc_init(void)
 {
-	int ret;
-
-	ret = platform_driver_register(&msm_clock_gcc_driver);
-	if (!ret)
-		ret = platform_driver_register(&msm_clock_spm_driver);
-
-	return ret;
+	return platform_driver_register(&msm_clock_gcc_driver);
 }
 arch_initcall(msm_gcc_init);
 

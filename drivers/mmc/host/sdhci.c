@@ -3183,6 +3183,14 @@ static irqreturn_t sdhci_cmdq_irq(struct sdhci_host *host, u32 intmask)
 	else if (intmask & SDHCI_INT_DATA_MASK)
 		err = sdhci_get_data_err(intmask);
 
+	ret = cmdq_irq(host->mmc, err);
+	if (err) {
+		/* Clear the error interrupts */
+		mask = intmask & SDHCI_INT_ERROR_MASK;
+		sdhci_writel(host, mask, SDHCI_INT_STATUS);
+	}
+	return ret;
+
 }
 
 #else
@@ -3686,6 +3694,11 @@ static void sdhci_cmdq_dump_vendor_regs(struct mmc_host *mmc)
 	sdhci_dumpregs(host);
 }
 
+static int sdhci_cmdq_init(struct sdhci_host *host, struct mmc_host *mmc,
+			   bool dma64)
+{
+	return cmdq_init(host->cq_host, mmc, dma64);
+}
 
 static void sdhci_cmdq_set_block_size(struct mmc_host *mmc)
 {
@@ -4370,6 +4383,11 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (mmc->caps2 &  MMC_CAP2_CMD_QUEUE) {
 		bool dma64 = (host->flags & SDHCI_USE_ADMA_64BIT) ?
 			true : false;
+		ret = sdhci_cmdq_init(host, mmc, dma64);
+		if (ret)
+			pr_err("%s: CMDQ init: failed (%d)\n",
+			       mmc_hostname(host->mmc), ret);
+		else
 			host->cq_host->ops = &sdhci_cmdq_ops;
 	}
 	pr_info("%s: SDHCI controller on %s [%s] using %s in %s mode\n",

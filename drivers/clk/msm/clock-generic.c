@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -104,16 +104,14 @@ static int mux_set_rate(struct clk *c, unsigned long rate)
 	 * rate.
 	 */
 	for (i = 0; i < mux->num_parents && mux->try_get_rate; i++) {
-		if (mux->parents[i].src->rate == rate) {
+		struct clk *p = mux->parents[i].src;
+		if (p->rate == rate && clk_round_rate(p, rate) == rate) {
 			new_parent = mux->parents[i].src;
 			break;
 		}
 	}
 
-	if (new_parent == c->parent && rate == c->rate)
-		return 0;
-
-	for (i = 0; i < mux->num_parents && !new_parent; i++) {
+	for (i = 0; i < mux->num_parents && !(!i && new_parent); i++) {
 		if (clk_round_rate(mux->parents[i].src, rate) == rate) {
 			new_parent = mux->parents[i].src;
 			if (!mux->try_new_parent)
@@ -269,7 +267,7 @@ static long __div_round_rate(struct div_data *data, unsigned long rate,
 	rate = max(rate, 1UL);
 
 	min_div = max(data->min_div, 1U);
-	max_div = min(data->max_div, (unsigned int) (ULONG_MAX / rate));
+	max_div = min(data->max_div, (unsigned int) (ULONG_MAX));
 
 	/*
 	 * div values are doubled for half dividers.
@@ -278,6 +276,11 @@ static long __div_round_rate(struct div_data *data, unsigned long rate,
 	numer = data->is_half_divider ? 2 : 1;
 
 	for (div = min_div; div <= max_div; div++) {
+		if (data->skip_odd_div && (div & 1))
+			if (!(data->allow_div_one && (div == 1)))
+				continue;
+		if (data->skip_even_div && !(div & 1))
+			continue;
 		req_prate = mult_frac(rate, div, numer);
 		prate = clk_round_rate(parent, req_prate);
 		if (IS_ERR_VALUE(prate))
@@ -348,7 +351,7 @@ static int div_set_rate(struct clk *c, unsigned long rate)
 	struct div_data *data = &d->data;
 
 	rrate = __div_round_rate(data, rate, c->parent, &div, &new_prate);
-	if (rrate != rate)
+	if (rrate < rate || rrate > rate + data->rate_margin)
 		return -EINVAL;
 
 	/*
@@ -648,6 +651,29 @@ static long __mux_div_round_rate(struct clk *c, unsigned long rate,
 	unsigned long rrate, best = 0, _best_div = 0, _best_prate = 0;
 	struct clk *_best_parent = 0;
 
+	if (md->try_get_rate) {
+		for (i = 0; i < md->num_parents; i++) {
+			int divider;
+			unsigned long p_rate;
+
+			rrate = __div_round_rate(&md->data, rate,
+						md->parents[i].src,
+						&divider, &p_rate);
+			/*
+			 * Check if one of the possible parents is already at
+			 * the requested rate.
+			 */
+			if (p_rate == clk_get_rate(md->parents[i].src)
+					&& rrate == rate) {
+				best = rrate;
+				_best_div = divider;
+				_best_prate = p_rate;
+				_best_parent = md->parents[i].src;
+				goto end;
+			}
+		}
+	}
+
 	for (i = 0; i < md->num_parents; i++) {
 		int div;
 		unsigned long prate;
@@ -665,7 +691,7 @@ static long __mux_div_round_rate(struct clk *c, unsigned long rate,
 		if (rate <= rrate && rrate <= rate + md->data.rate_margin)
 			break;
 	}
-
+end:
 	if (best_div)
 		*best_div = _best_div;
 	if (best_prate)
@@ -745,7 +771,7 @@ static int mux_div_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	struct mux_div_clk *md = to_mux_div_clk(c);
 	unsigned long flags, rrate;
-	unsigned long new_prate, old_prate;
+	unsigned long new_prate, new_parent_orig_rate;
 	struct clk *old_parent, *new_parent;
 	u32 new_div, old_div;
 	int rc;
@@ -756,12 +782,11 @@ static int mux_div_clk_set_rate(struct clk *c, unsigned long rate)
 
 	rrate = __mux_div_round_rate(c, rate, &new_parent, &new_div,
 							&new_prate);
-	if (rrate != rate)
+	if (rrate < rate || rrate > rate + md->data.rate_margin)
 		return -EINVAL;
 
 	old_parent = c->parent;
 	old_div = md->data.div;
-	old_prate = clk_get_rate(c->parent);
 
 	/* Refer to the description of safe_freq in clock-generic.h */
 	if (md->safe_freq)
@@ -778,6 +803,7 @@ static int mux_div_clk_set_rate(struct clk *c, unsigned long rate)
 	if (rc)
 		return rc;
 
+	new_parent_orig_rate = clk_get_rate(new_parent);
 	rc = clk_set_rate(new_parent, new_prate);
 	if (rc) {
 		pr_err("failed to set %s to %ld\n",
@@ -803,9 +829,9 @@ err_set_src_div:
 	/* Not switching to new_parent, so disable it */
 	__clk_post_reparent(c, new_parent, &flags);
 err_pre_reparent:
-	rc = clk_set_rate(old_parent, old_prate);
-	WARN(rc, "%s: error changing parent (%s) rate to %ld\n",
-		clk_name(c), clk_name(old_parent), old_prate);
+	rc = clk_set_rate(new_parent, new_parent_orig_rate);
+	WARN(rc, "%s: error changing new_parent (%s) rate back to %ld\n",
+		clk_name(c), clk_name(new_parent), new_parent_orig_rate);
 err_set_rate:
 	rc = set_src_div(md, old_parent, old_div);
 	WARN(rc, "%s: error changing back to original div (%d) and parent (%s)\n",
@@ -839,8 +865,6 @@ static enum handoff mux_div_clk_handoff(struct clk *c)
 	unsigned int numer;
 
 	parent_rate = clk_get_rate(c->parent);
-	if (!parent_rate)
-		return HANDOFF_DISABLED_CLK;
 	/*
 	 * div values are doubled for half dividers.
 	 * Adjust for that by picking a numer of 2.
@@ -854,10 +878,20 @@ static enum handoff mux_div_clk_handoff(struct clk *c)
 		return HANDOFF_DISABLED_CLK;
 	}
 
-	if (!md->ops->is_enabled)
-		return HANDOFF_DISABLED_CLK;
-	if (md->ops->is_enabled(md))
-		return HANDOFF_ENABLED_CLK;
+	if (md->en_mask && md->ops && md->ops->is_enabled)
+		return md->ops->is_enabled(md)
+			? HANDOFF_ENABLED_CLK
+			: HANDOFF_DISABLED_CLK;
+
+	/*
+	 * If this function returns 'enabled' even when the clock downstream
+	 * of this clock is disabled, then handoff code will unnecessarily
+	 * enable the current parent of this clock. If this function always
+	 * returns 'disabled' and a clock downstream is on, the clock handoff
+	 * code will bump up the ref count for this clock and its current
+	 * parent as necessary. So, clocks without an actual HW gate can
+	 * always return disabled.
+	 */
 	return HANDOFF_DISABLED_CLK;
 }
 

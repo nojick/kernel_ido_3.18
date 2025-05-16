@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -52,6 +52,7 @@ static struct mux_div_clk a7ssmux = {
 	.div_mask = BM(4, 0),
 	.src_mask = BM(10, 8) >> 8,
 	.src_shift = 8,
+	.en_mask = 1,
 };
 
 static struct clk_lookup clock_tbl_a7[] = {
@@ -68,7 +69,7 @@ static struct clk_lookup clock_tbl_a7[] = {
 
 static void print_opp_table(int a7_cpu)
 {
-	struct opp *oppfmax, *oppfmin;
+	struct dev_pm_opp *oppfmax, *oppfmin;
 	unsigned long apc0_fmax = a7ssmux.c.fmax[a7ssmux.c.num_fmax - 1];
 	unsigned long apc0_fmin = a7ssmux.c.fmax[1];
 
@@ -220,6 +221,7 @@ static int of_get_fmax_vdd_class(struct platform_device *pdev, struct clk *c,
 	devm_kfree(&pdev->dev, array);
 	vdd->num_levels = prop_len;
 	vdd->cur_level = prop_len;
+	vdd->use_max_uV = true;
 	c->num_fmax = prop_len;
 	return 0;
 }
@@ -292,7 +294,7 @@ static void get_speed_bin_b(struct platform_device *pdev, int *bin,
 				*bin = (pte_efuse >> 23) & 0x3;
 				if (*bin) {
 					dev_info(&pdev->dev, "Speed bin: %d PVS Version: %d\n",
-						      *bin, *version);
+						*bin, *version);
 					return;
 				}
 			}
@@ -370,10 +372,13 @@ static int clock_a7_probe(struct platform_device *pdev)
 	char prop_name[] = "qcom,speedX-bin-vX";
 	const void *prop;
 	bool compat_bin = false;
+	bool compat_bin2 = false;
 	bool opp_enable;
 
 	compat_bin = of_device_is_compatible(pdev->dev.of_node,
 						"qcom,clock-a53-8916");
+	compat_bin2 = of_device_is_compatible(pdev->dev.of_node,
+						"qcom,clock-a7-mdm9607");
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rcg-base");
 	if (!res) {
@@ -404,7 +409,7 @@ static int clock_a7_probe(struct platform_device *pdev)
 	if (prop)
 		a7ssmux.safe_freq = of_read_ulong(prop, 1);
 
-	if (compat_bin)
+	if (compat_bin || compat_bin2)
 		get_speed_bin_b(pdev, &speed_bin, &version);
 	else
 		get_speed_bin(pdev, &speed_bin, &version);
@@ -468,8 +473,11 @@ static struct of_device_id clock_a7_match_table[] = {
 	{.compatible = "qcom,clock-a7-8226"},
 	{.compatible = "qcom,clock-a7-krypton"},
 	{.compatible = "qcom,clock-a7-9630"},
-	{.compatible = "qcom,clock-a7-zirc"},
+	{.compatible = "qcom,clock-a7-9640"},
 	{.compatible = "qcom,clock-a53-8916"},
+	{.compatible = "qcom,clock-a7-9650"},
+	{.compatible = "qcom,clock-a7-mdm9607"},
+	{.compatible = "qcom,clock-a7-sdx20"},
 	{}
 };
 
