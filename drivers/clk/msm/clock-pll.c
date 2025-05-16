@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -19,7 +19,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/sched.h>
 #include <soc/qcom/clock-pll.h>
 #include <soc/qcom/msm-clock-controller.h>
 
@@ -32,8 +31,6 @@
 
 #define PLL_EN_REG(x)		(*(x)->base + (unsigned long) (x)->en_reg)
 #define PLL_STATUS_REG(x)	(*(x)->base + (unsigned long) (x)->status_reg)
-#define PLL_ALT_STATUS_REG(x)	(*(x)->base + (unsigned long) \
-							(x)->alt_status_reg)
 #define PLL_MODE_REG(x)		(*(x)->base + (unsigned long) (x)->mode_reg)
 #define PLL_L_REG(x)		(*(x)->base + (unsigned long) (x)->l_reg)
 #define PLL_M_REG(x)		(*(x)->base + (unsigned long) (x)->m_reg)
@@ -44,12 +41,8 @@
 							(x)->config_alt_reg)
 #define PLL_CFG_CTL_REG(x)	(*(x)->base + (unsigned long) \
 							(x)->config_ctl_reg)
-#define PLL_CFG_CTL_HI_REG(x)	(*(x)->base + (unsigned long) \
-							(x)->config_ctl_hi_reg)
 #define PLL_TEST_CTL_LO_REG(x)	(*(x)->base + (unsigned long) \
 							(x)->test_ctl_lo_reg)
-#define PLL_TEST_CTL_HI_REG(x)	(*(x)->base + (unsigned long) \
-							(x)->test_ctl_hi_reg)
 static DEFINE_SPINLOCK(pll_reg_lock);
 
 #define ENABLE_WAIT_MAX_LOOPS 200
@@ -264,7 +257,7 @@ static int sr2_pll_clk_enable(struct clk *c)
 	return ret;
 }
 
-void __variable_rate_pll_init(struct clk *c)
+static void __variable_rate_pll_init(struct clk *c)
 {
 	struct pll_clk *pll = to_pll_clk(c);
 	u32 regval;
@@ -301,15 +294,6 @@ void __variable_rate_pll_init(struct clk *c)
 
 	writel_relaxed(pll->vals.alpha_val, PLL_ALPHA_REG(pll));
 	writel_relaxed(pll->vals.config_ctl_val, PLL_CFG_CTL_REG(pll));
-	if (pll->vals.config_ctl_hi_val)
-		writel_relaxed(pll->vals.config_ctl_hi_val,
-				PLL_CFG_CTL_HI_REG(pll));
-	if (pll->init_test_ctl) {
-		writel_relaxed(pll->vals.test_ctl_lo_val,
-				PLL_TEST_CTL_LO_REG(pll));
-		writel_relaxed(pll->vals.test_ctl_hi_val,
-				PLL_TEST_CTL_HI_REG(pll));
-	}
 
 	pll->inited = true;
 }
@@ -319,11 +303,8 @@ static int variable_rate_pll_clk_enable(struct clk *c)
 	unsigned long flags;
 	struct pll_clk *pll = to_pll_clk(c);
 	int ret = 0, count;
-	u32 mode, testlo;
+	u32 mode;
 	u32 lockmask = pll->masks.lock_mask ?: PLL_LOCKED_BIT;
-	u32 mode_lock;
-	u64 time;
-	bool early_lock = false;
 
 	spin_lock_irqsave(&pll_reg_lock, flags);
 
@@ -333,23 +314,9 @@ static int variable_rate_pll_clk_enable(struct clk *c)
 	mode = readl_relaxed(PLL_MODE_REG(pll));
 
 	/* Set test control bits as required by HW doc */
-	if (pll->test_ctl_lo_reg && pll->vals.test_ctl_lo_val &&
-		pll->pgm_test_ctl_enable)
+	if (pll->test_ctl_lo_reg && pll->vals.test_ctl_lo_val)
 		writel_relaxed(pll->vals.test_ctl_lo_val,
 				PLL_TEST_CTL_LO_REG(pll));
-
-	if (!pll->test_ctl_dbg) {
-		/* Enable test_ctl debug */
-		mode |= BIT(3);
-		writel_relaxed(mode, PLL_MODE_REG(pll));
-
-		testlo = readl_relaxed(PLL_TEST_CTL_LO_REG(pll));
-		testlo &= ~BM(7, 6);
-		testlo |= 0xC0;
-		writel_relaxed(testlo, PLL_TEST_CTL_LO_REG(pll));
-		/* Wait for the write to complete */
-		mb();
-	}
 
 	/* Disable PLL bypass mode. */
 	mode |= PLL_BYPASSNL;
@@ -366,101 +333,23 @@ static int variable_rate_pll_clk_enable(struct clk *c)
 	mode |= PLL_RESET_N;
 	writel_relaxed(mode, PLL_MODE_REG(pll));
 
-	/*
-	 * 5us delay mandated by HPG. However, put in a 200us delay here.
-	 * This is to address possible locking issues with the PLL exhibit
-	 * early "transient" locks about 16us from this point. With this
-	 * higher delay, we avoid running into those transients.
-	 */
+	/* 5us delay mandated by HPG. Use 10 to be sure. */
 	mb();
-	udelay(200);
+	udelay(10);
 
 	/* Clear test control bits */
-	if (pll->test_ctl_lo_reg && pll->vals.test_ctl_lo_val &&
-		pll->pgm_test_ctl_enable)
+	if (pll->test_ctl_lo_reg && pll->vals.test_ctl_lo_val)
 		writel_relaxed(0x0, PLL_TEST_CTL_LO_REG(pll));
 
-
-	time = sched_clock();
 	/* Wait for pll to lock. */
 	for (count = ENABLE_WAIT_MAX_LOOPS; count > 0; count--) {
-		if (readl_relaxed(PLL_STATUS_REG(pll)) & lockmask) {
-			udelay(1);
-			/*
-			 * Check again to be sure. This is to avoid
-			 * breaking too early if there is a "transient"
-			 * lock.
-			 */
-			if ((readl_relaxed(PLL_STATUS_REG(pll)) & lockmask))
-				break;
-			else
-				early_lock = true;
-		}
+		if (readl_relaxed(PLL_STATUS_REG(pll)) & lockmask)
+			break;
 		udelay(1);
 	}
-	time = sched_clock() - time;
 
-	mode_lock = readl_relaxed(PLL_STATUS_REG(pll));
-
-	if (!(mode_lock & lockmask)) {
-		pr_err("PLL lock bit detection total wait time: %lld ns", time);
-		pr_err("PLL %s didn't lock after enabling for L value 0x%x!\n",
-			c->dbg_name, readl_relaxed(PLL_L_REG(pll)));
-		pr_err("mode register is 0x%x\n",
-			readl_relaxed(PLL_STATUS_REG(pll)));
-		pr_err("user control register is 0x%x\n",
-			readl_relaxed(PLL_CONFIG_REG(pll)));
-		pr_err("config control register is 0x%x\n",
-			readl_relaxed(PLL_CFG_CTL_REG(pll)));
-		pr_err("test control high register is 0x%x\n",
-			readl_relaxed(PLL_TEST_CTL_HI_REG(pll)));
-		pr_err("test control low register is 0x%x\n",
-			readl_relaxed(PLL_TEST_CTL_LO_REG(pll)));
-		pr_err("early lock? %s\n", early_lock ? "yes" : "no");
-
-		testlo = readl_relaxed(PLL_TEST_CTL_LO_REG(pll));
-		testlo &= ~BM(7, 6);
-		writel_relaxed(testlo, PLL_TEST_CTL_LO_REG(pll));
-		/* Wait for the write to complete */
-		mb();
-
-		pr_err("test_ctl_lo = 0x%x, pll status is: 0x%x\n",
-			readl_relaxed(PLL_TEST_CTL_LO_REG(pll)),
-			readl_relaxed(PLL_ALT_STATUS_REG(pll)));
-
-		testlo = readl_relaxed(PLL_TEST_CTL_LO_REG(pll));
-		testlo &= ~BM(7, 6);
-		testlo |= 0x40;
-		writel_relaxed(testlo, PLL_TEST_CTL_LO_REG(pll));
-		/* Wait for the write to complete */
-		mb();
-		pr_err("test_ctl_lo = 0x%x, pll status is: 0x%x\n",
-			readl_relaxed(PLL_TEST_CTL_LO_REG(pll)),
-			readl_relaxed(PLL_ALT_STATUS_REG(pll)));
-
-		testlo = readl_relaxed(PLL_TEST_CTL_LO_REG(pll));
-		testlo &= ~BM(7, 6);
-		testlo |= 0x80;
-		writel_relaxed(testlo, PLL_TEST_CTL_LO_REG(pll));
-		/* Wait for the write to complete */
-		mb();
-
-		pr_err("test_ctl_lo = 0x%x, pll status is: 0x%x\n",
-			readl_relaxed(PLL_TEST_CTL_LO_REG(pll)),
-			readl_relaxed(PLL_ALT_STATUS_REG(pll)));
-
-		testlo = readl_relaxed(PLL_TEST_CTL_LO_REG(pll));
-		testlo &= ~BM(7, 6);
-		testlo |= 0xC0;
-		writel_relaxed(testlo, PLL_TEST_CTL_LO_REG(pll));
-		/* Wait for the write to complete */
-		mb();
-
-		pr_err("test_ctl_lo = 0x%x, pll status is: 0x%x\n",
-			readl_relaxed(PLL_TEST_CTL_LO_REG(pll)),
-			readl_relaxed(PLL_ALT_STATUS_REG(pll)));
-		panic("failed to lock %s PLL\n", c->dbg_name);
-	}
+	if (!(readl_relaxed(PLL_STATUS_REG(pll)) & lockmask))
+		pr_err("PLL %s didn't lock after enabling it!\n", c->dbg_name);
 
 	/* Enable PLL output. */
 	mode |= PLL_OUTCTRL;
@@ -472,56 +361,6 @@ static int variable_rate_pll_clk_enable(struct clk *c)
 	spin_unlock_irqrestore(&pll_reg_lock, flags);
 
 	return ret;
-}
-
-static void variable_rate_pll_clk_disable_hwfsm(struct clk *c)
-{
-	struct pll_clk *pll = to_pll_clk(c);
-	u32 regval;
-
-	/* Set test control bit to stay-in-CFA if necessary */
-	if (pll->test_ctl_lo_reg && pll->pgm_test_ctl_enable) {
-		regval = readl_relaxed(PLL_TEST_CTL_LO_REG(pll));
-		writel_relaxed(regval | BIT(16),
-				PLL_TEST_CTL_LO_REG(pll));
-	}
-
-	/* 8 reference clock cycle delay mandated by the HPG */
-	udelay(1);
-}
-
-static int variable_rate_pll_clk_enable_hwfsm(struct clk *c)
-{
-	struct pll_clk *pll = to_pll_clk(c);
-	int count;
-	u32 lockmask = pll->masks.lock_mask ?: PLL_LOCKED_BIT;
-	unsigned long flags;
-	u32 regval;
-
-	spin_lock_irqsave(&pll_reg_lock, flags);
-
-	/* Clear test control bit if necessary */
-	if (pll->test_ctl_lo_reg && pll->pgm_test_ctl_enable) {
-		regval = readl_relaxed(PLL_TEST_CTL_LO_REG(pll));
-		regval &= ~BIT(16);
-		writel_relaxed(regval, PLL_TEST_CTL_LO_REG(pll));
-	}
-
-	/* Wait for 50us explicitly to avoid transient locks */
-	udelay(50);
-
-	for (count = ENABLE_WAIT_MAX_LOOPS; count > 0; count--) {
-		if (readl_relaxed(PLL_STATUS_REG(pll)) & lockmask)
-			break;
-		udelay(1);
-	}
-
-	if (!(readl_relaxed(PLL_STATUS_REG(pll)) & lockmask))
-		pr_err("PLL %s didn't lock after enabling it!\n", c->dbg_name);
-
-	spin_unlock_irqrestore(&pll_reg_lock, flags);
-
-	return 0;
 }
 
 static void __pll_clk_enable_reg(void __iomem *mode_reg)
@@ -680,9 +519,10 @@ static enum handoff variable_rate_pll_handoff(struct clk *c)
 
 	pll->src_rate = clk_get_rate(c->parent);
 
-	lval = readl_relaxed(PLL_L_REG(pll));
-	if (!lval)
+	if ((mode & mask) != mask)
 		return HANDOFF_DISABLED_CLK;
+
+	lval = readl_relaxed(PLL_L_REG(pll));
 
 	c->rate = pll->src_rate * lval;
 
@@ -690,9 +530,6 @@ static enum handoff variable_rate_pll_handoff(struct clk *c)
 		WARN(1, "%s: Out of spec PLL", c->dbg_name);
 		return HANDOFF_DISABLED_CLK;
 	}
-
-	if ((mode & mask) != mask)
-		return HANDOFF_DISABLED_CLK;
 
 	return HANDOFF_ENABLED_CLK;
 }
@@ -703,9 +540,6 @@ static long variable_rate_pll_round_rate(struct clk *c, unsigned long rate)
 
 	if (!pll->src_rate)
 		return 0;
-
-	if (pll->no_prepared_reconfig && c->prepare_count && c->rate != rate)
-		return -EINVAL;
 
 	if (rate < pll->min_rate)
 		rate = pll->min_rate;
@@ -733,12 +567,12 @@ static int variable_rate_pll_set_rate(struct clk *c, unsigned long rate)
 
 	spin_lock_irqsave(&c->lock, flags);
 
-	if (c->count && c->ops->disable)
+	if (c->count)
 		c->ops->disable(c);
 
 	writel_relaxed(l_val, PLL_L_REG(pll));
 
-	if (c->count && c->ops->enable)
+	if (c->count)
 		c->ops->enable(c);
 
 	spin_unlock_irqrestore(&c->lock, flags);
@@ -884,14 +718,6 @@ struct clk_ops clk_ops_sr2_pll = {
 	.list_registers = local_pll_clk_list_registers,
 };
 
-struct clk_ops clk_ops_variable_rate_pll_hwfsm = {
-	.enable = variable_rate_pll_clk_enable_hwfsm,
-	.disable = variable_rate_pll_clk_disable_hwfsm,
-	.set_rate = variable_rate_pll_set_rate,
-	.round_rate = variable_rate_pll_round_rate,
-	.handoff = variable_rate_pll_handoff,
-};
-
 struct clk_ops clk_ops_variable_rate_pll = {
 	.enable = variable_rate_pll_clk_enable,
 	.disable = local_pll_clk_disable,
@@ -950,60 +776,6 @@ struct clk_ops clk_ops_pll_acpu_vote = {
 	.disable = pll_acpu_vote_clk_disable,
 	.is_enabled = pll_vote_clk_is_enabled,
 	.handoff = pll_acpu_vote_clk_handoff,
-	.list_registers = pll_vote_clk_list_registers,
-};
-
-
-static int pll_sleep_clk_enable(struct clk *c)
-{
-	u32 ena;
-	unsigned long flags;
-	struct pll_vote_clk *pllv = to_pll_vote_clk(c);
-
-	spin_lock_irqsave(&pll_reg_lock, flags);
-	ena = readl_relaxed(PLL_EN_REG(pllv));
-	ena &= ~(pllv->en_mask);
-	writel_relaxed(ena, PLL_EN_REG(pllv));
-	spin_unlock_irqrestore(&pll_reg_lock, flags);
-	return 0;
-}
-
-static void pll_sleep_clk_disable(struct clk *c)
-{
-	u32 ena;
-	unsigned long flags;
-	struct pll_vote_clk *pllv = to_pll_vote_clk(c);
-
-	spin_lock_irqsave(&pll_reg_lock, flags);
-	ena = readl_relaxed(PLL_EN_REG(pllv));
-	ena |= pllv->en_mask;
-	writel_relaxed(ena, PLL_EN_REG(pllv));
-	spin_unlock_irqrestore(&pll_reg_lock, flags);
-}
-
-static enum handoff pll_sleep_clk_handoff(struct clk *c)
-{
-	struct pll_vote_clk *pllv = to_pll_vote_clk(c);
-
-	if (!(readl_relaxed(PLL_EN_REG(pllv)) & pllv->en_mask))
-		return HANDOFF_ENABLED_CLK;
-
-	return HANDOFF_DISABLED_CLK;
-}
-
-/*
- * This .ops is meant to be used by gpll0_sleep_clk_src. The aim is to utilise
- * the h/w feature of sleep enable bit to denote if the PLL can be turned OFF
- * once APPS goes to PC. gpll0_sleep_clk_src will be enabled only if there is a
- * peripheral client using it and disabled if there is none. The current
- * implementation of enable .ops  clears the h/w bit of sleep enable while the
- * disable .ops asserts it.
- */
-
-struct clk_ops clk_ops_pll_sleep_vote = {
-	.enable = pll_sleep_clk_enable,
-	.disable = pll_sleep_clk_disable,
-	.handoff = pll_sleep_clk_handoff,
 	.list_registers = pll_vote_clk_list_registers,
 };
 

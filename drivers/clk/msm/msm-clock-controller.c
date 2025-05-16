@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -371,11 +371,8 @@ static int generic_clk_parse_init_config(struct device *dev, struct clk *c,
 {
 	int rc;
 	u32 temp;
-	char *name = "qcom,always-on";
+	char *name = "qcom,config-rate";
 
-	c->always_on = of_property_read_bool(np, name);
-
-	name = "qcom,config-rate";
 	/* This property is optional */
 	if (!of_find_property(np, name, NULL))
 		return 0;
@@ -387,6 +384,8 @@ static int generic_clk_parse_init_config(struct device *dev, struct clk *c,
 	}
 	c->init_rate = temp;
 
+	name = "qcom,always-on";
+	c->always_on = of_property_read_bool(np, name);
 	return rc;
 }
 
@@ -455,7 +454,7 @@ void *msmclk_parse_dt_node(struct device *dev, struct device_node *np)
 	}
 
 	parser = msmclk_parser_lookup(np);
-	if (IS_ERR_OR_NULL(parser)) {
+	if (IS_ERR(parser)) {
 		dt_err(np, "no parser found\n");
 		return ERR_PTR(-EINVAL);
 	}

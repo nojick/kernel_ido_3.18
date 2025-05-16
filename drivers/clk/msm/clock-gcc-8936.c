@@ -1,4 +1,5 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/*
+ * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -301,7 +302,6 @@ static void __iomem *virt_dbgbase;
 
 #define CLKFLAG_WAKEUP_CYCLES				0x0
 #define CLKFLAG_SLEEP_CYCLES				0x0
-
 
 /* Mux source select values */
 #define gcc_xo_source_val		0
@@ -833,8 +833,8 @@ static struct rcg_clk vfe0_clk_src = {
 	.c = {
 		.dbg_name = "vfe0_clk_src",
 		.ops = &clk_ops_rcg,
-		VDD_DIG_FMAX_MAP4(LOW, 200000000, NOMINAL, 400000000,
-			NOMINAL_PLUS, 480000000, HIGH, 600000000),
+		VDD_DIG_FMAX_MAP4(LOW, 200000000, NOMINAL, 400000000, NOMINAL_PLUS, 480000000, HIGH,
+			600000000),
 		CLK_INIT(vfe0_clk_src.c),
 	},
 };
@@ -848,10 +848,10 @@ static struct clk_freq_tbl ftbl_gcc_oxili_gfx3d_clk[] = {
 	F( 200000000,      gpll0_out_main,   4,	  0,	0),
 	F( 220000000,      gpll3_out_main,   5,	  0,	0),
 	F( 266670000,      gpll0_out_main,   3,	  0,	0),
-	F( 310000000,      gpll2_gfx3d,      3,	  0,	0),
+	F( 310000000,	gpll2_gfx3d,	3,	  0,	0),
 	F( 400000000,      gpll0_out_main,   2,	  0,	0),
-	F( 465000000,      gpll2_gfx3d,      2,    0,   0),
-	F( 550000000,      gpll3_out_main,   2,    0,   0),
+	F( 465000000,      gpll2_gfx3d,   2,    0,    0),
+	F( 550000000,      gpll3_out_main,   2,    0,    0),
 	F_END
 };
 
@@ -864,8 +864,8 @@ static struct rcg_clk gfx3d_clk_src = {
 	.c = {
 		.dbg_name = "gfx3d_clk_src",
 		.ops = &clk_ops_rcg,
-		VDD_DIG_FMAX_MAP4(LOW, 220000000, NOMINAL, 400000000,
-			NOMINAL_PLUS, 465000000, HIGH, 550000000),
+		VDD_DIG_FMAX_MAP4(LOW, 220000000, NOMINAL, 400000000, NOMINAL_PLUS, 465000000, HIGH,
+			550000000),
 		CLK_INIT(gfx3d_clk_src.c),
 	},
 };
@@ -1351,7 +1351,7 @@ static struct rcg_clk byte0_clk_src = {
 	.c = {
 		.dbg_name = "byte0_clk_src",
 		.ops = &clk_ops_byte,
-		VDD_DIG_FMAX_MAP2(LOW, 112000000, NOMINAL, 188000000),
+		VDD_DIG_FMAX_MAP2(LOW, 112500000, NOMINAL, 187500000),
 		CLK_INIT(byte0_clk_src.c),
 	},
 };
@@ -1370,7 +1370,7 @@ static struct rcg_clk byte1_clk_src = {
 	.c = {
 		.dbg_name = "byte1_clk_src",
 		.ops = &clk_ops_byte,
-		VDD_DIG_FMAX_MAP2(LOW, 112000000, NOMINAL, 188000000),
+		VDD_DIG_FMAX_MAP2(LOW, 112500000, NOMINAL, 187500000),
 		CLK_INIT(byte1_clk_src.c),
 	},
 };
@@ -1453,7 +1453,7 @@ static struct rcg_clk pclk0_clk_src = {
 	.c = {
 		.dbg_name = "pclk0_clk_src",
 		.ops = &clk_ops_pixel,
-		VDD_DIG_FMAX_MAP2(LOW, 149000000, NOMINAL, 250000000),
+		VDD_DIG_FMAX_MAP2(LOW, 150000000, NOMINAL, 250000000),
 		CLK_INIT(pclk0_clk_src.c),
 	},
 };
@@ -1472,7 +1472,7 @@ static struct rcg_clk pclk1_clk_src = {
 	.c = {
 		.dbg_name = "pclk1_clk_src",
 		.ops = &clk_ops_pixel,
-		VDD_DIG_FMAX_MAP2(LOW, 149000000, NOMINAL, 250000000),
+		VDD_DIG_FMAX_MAP2(LOW, 150000000, NOMINAL, 250000000),
 		CLK_INIT(pclk1_clk_src.c),
 	},
 };
@@ -1556,7 +1556,7 @@ static struct rcg_clk sdcc2_apps_clk_src = {
 };
 
 static struct clk_freq_tbl ftbl_gcc_usb_hs_system_clk[] = {
-	F(  57140000,      gpll0_out_main,  14,   0,    0),
+	F(  57140000,      gpll0_out_main,  14,    0,    0),
 	F(  80000000,	   gpll0_out_main,  10,	  0,	0),
 	F( 100000000,	   gpll0_out_main,   8,	  0,	0),
 	F_END
@@ -2344,6 +2344,19 @@ static struct branch_clk gcc_oxili_gmem_clk = {
 	},
 };
 
+static struct gate_clk gcc_oxili_gmem_gate_clk = {
+	.en_reg = OXILI_GMEM_CBCR,
+	.en_mask = BIT(0),
+	.delay_us = 50,
+	.base = &virt_bases[GCC_BASE],
+	.c = {
+		.dbg_name = "gcc_oxili_gmem_gate_clk",
+		.parent = &gfx3d_clk_src.c,
+		.ops = &clk_ops_gate,
+		CLK_INIT(gcc_oxili_gmem_gate_clk.c),
+	},
+};
+
 static struct local_vote_clk gcc_apss_tcu_clk;
 static struct branch_clk gcc_bimc_gfx_clk = {
 	.cbcr_reg = BIMC_GFX_CBCR,
@@ -2485,9 +2498,6 @@ static struct branch_clk gcc_mdss_mdp_clk = {
 		CLK_INIT(gcc_mdss_mdp_clk.c),
 	},
 };
-
-static DEFINE_CLK_VOTER(gcc_mdss_mdp_vote_clk, &gcc_mdss_mdp_clk.c, 0);
-static DEFINE_CLK_VOTER(gcc_mdss_mdp_rotator_vote_clk, &gcc_mdss_mdp_clk.c, 0);
 
 static struct branch_clk gcc_mdss_pclk0_clk = {
 	.cbcr_reg = MDSS_PCLK0_CBCR,
@@ -3287,7 +3297,6 @@ static struct clk_lookup msm_clocks_lookup[] = {
 	CLK_LIST(gcc_camss_vfe0_clk),
 	CLK_LIST(gcc_camss_vfe_ahb_clk),
 	CLK_LIST(gcc_camss_vfe_axi_clk),
-	CLK_LIST(gcc_oxili_gmem_clk),
 	CLK_LIST(gcc_gp1_clk),
 	CLK_LIST(gcc_gp2_clk),
 	CLK_LIST(gcc_gp3_clk),
@@ -3333,6 +3342,14 @@ static struct clk_lookup msm_clocks_lookup[] = {
 	CLK_LIST(gcc_snoc_qosgen_clk),
 };
 
+static struct clk_lookup msm_clocks_lookup_v1[] = {
+	CLK_LIST(gcc_oxili_gmem_clk),
+};
+
+static struct clk_lookup msm_clocks_lookup_v3[] = {
+	CLK_LIST(gcc_oxili_gmem_gate_clk),
+};
+
 /* Please note that the order of reg-names is important */
 static int get_memory(struct platform_device *pdev)
 {
@@ -3373,10 +3390,14 @@ static int msm_gcc_probe(struct platform_device *pdev)
 	struct clk *tmp_clk;
 	int ret;
 	u32 regval;
+	bool compat_bin = false;
 
 	ret = get_memory(pdev);
 	if (ret)
 		return ret;
+
+	compat_bin = of_device_is_compatible(pdev->dev.of_node,
+						"qcom,gcc-8936-v3");
 
 	vdd_dig.regulator[0] = devm_regulator_get(&pdev->dev, "vdd_dig");
 	if (IS_ERR(vdd_dig.regulator[0])) {
@@ -3450,6 +3471,32 @@ static int msm_gcc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	if (compat_bin) {
+		ret = of_msm_clock_register(pdev->dev.of_node,
+				msm_clocks_lookup_v3,
+				ARRAY_SIZE(msm_clocks_lookup_v3));
+		regval = readl_relaxed(GCC_REG_BASE(OXILI_GMEM_CBCR));
+		regval ^= 0xFF0;
+		regval |= CLKFLAG_WAKEUP_CYCLES << 8;
+		regval |= CLKFLAG_SLEEP_CYCLES << 4;
+		writel_relaxed(regval, GCC_REG_BASE(OXILI_GMEM_CBCR));
+
+		/* Enable GMEM HW Dynamic */
+		regval = 0x0;
+		writel_relaxed(regval, GCC_REG_BASE(GCC_SPARE3_REG));
+	} else {
+		ret = of_msm_clock_register(pdev->dev.of_node,
+				msm_clocks_lookup_v1,
+				ARRAY_SIZE(msm_clocks_lookup_v1));
+
+		/* Disable GMEM HW Dynamic */
+		regval = 0x1;
+		writel_relaxed(regval, GCC_REG_BASE(GCC_SPARE3_REG));
+	}
+
+	if (ret)
+		return ret;
+
 	clk_set_rate(&apss_ahb_clk_src.c, 19200000);
 	clk_prepare_enable(&apss_ahb_clk_src.c);
 
@@ -3464,6 +3511,7 @@ static int msm_gcc_probe(struct platform_device *pdev)
 
 static struct of_device_id msm_clock_gcc_match_table[] = {
 	{ .compatible = "qcom,gcc-8936" },
+	{ .compatible = "qcom,gcc-8936-v3" },
 	{}
 };
 
@@ -3625,10 +3673,6 @@ static struct clk_lookup msm_clocks_gcc_mdss[] = {
 	CLK_LIST(gcc_mdss_pclk1_clk),
 	CLK_LIST(gcc_mdss_byte0_clk),
 	CLK_LIST(gcc_mdss_byte1_clk),
-
-	/* voters for new rotator implementation */
-	CLK_LIST(gcc_mdss_mdp_vote_clk),
-	CLK_LIST(gcc_mdss_mdp_rotator_vote_clk),
 };
 
 static int msm_gcc_mdss_probe(struct platform_device *pdev)

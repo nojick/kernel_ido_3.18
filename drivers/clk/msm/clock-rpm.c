@@ -1,4 +1,4 @@
-/* Copyright (c) 2010-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2010-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,7 +14,7 @@
 #define pr_fmt(fmt) "%s: " fmt, __func__
 
 #include <linux/err.h>
-#include <linux/rtmutex.h>
+#include <linux/mutex.h>
 #include <linux/clk/msm-clk-provider.h>
 #include <soc/qcom/clock-rpm.h>
 #include <soc/qcom/msm-clock-controller.h>
@@ -31,42 +31,14 @@
 static int clk_rpmrs_set_rate_smd(struct rpm_clk *r, uint32_t value,
 				uint32_t context)
 {
-	int ret;
-
 	struct msm_rpm_kvp kvp = {
 		.key = r->rpm_key,
 		.data = (void *)&value,
 		.length = sizeof(value),
 	};
 
-	switch (context) {
-	case MSM_RPM_CTX_ACTIVE_SET:
-		if (*r->last_active_set_vote == value)
-			return 0;
-		break;
-	case MSM_RPM_CTX_SLEEP_SET:
-		 if (*r->last_sleep_set_vote == value)
-			return 0;
-		break;
-	default:
-		return -EINVAL;
-	};
-
-	ret = msm_rpm_send_message(context, r->rpm_res_type, r->rpm_clk_id,
+	return msm_rpm_send_message(context, r->rpm_res_type, r->rpm_clk_id,
 			&kvp, 1);
-	if (ret)
-		return ret;
-
-	switch (context) {
-	case MSM_RPM_CTX_ACTIVE_SET:
-		*r->last_active_set_vote = value;
-		break;
-	case MSM_RPM_CTX_SLEEP_SET:
-		*r->last_sleep_set_vote = value;
-		break;
-	}
-
-	return 0;
 }
 
 static int clk_rpmrs_handoff_smd(struct rpm_clk *r)
@@ -99,7 +71,7 @@ struct clk_rpmrs_data clk_rpmrs_data_smd = {
 	.ctx_sleep_id = MSM_RPM_CTX_SLEEP_SET,
 };
 
-static DEFINE_RT_MUTEX(rpm_clock_lock);
+static DEFINE_MUTEX(rpm_clock_lock);
 
 static void to_active_sleep_khz(struct rpm_clk *r, unsigned long rate,
 			unsigned long *active_khz, unsigned long *sleep_khz)
@@ -126,7 +98,7 @@ static int rpm_clk_prepare(struct clk *clk)
 	unsigned long peer_khz = 0, peer_sleep_khz = 0;
 	struct rpm_clk *peer = r->peer;
 
-	rt_mutex_lock(&rpm_clock_lock);
+	mutex_lock(&rpm_clock_lock);
 
 	to_active_sleep_khz(r, r->c.rate, &this_khz, &this_sleep_khz);
 
@@ -162,7 +134,7 @@ out:
 	if (!rc)
 		r->enabled = true;
 
-	rt_mutex_unlock(&rpm_clock_lock);
+	mutex_unlock(&rpm_clock_lock);
 
 	return rc;
 }
@@ -171,7 +143,7 @@ static void rpm_clk_unprepare(struct clk *clk)
 {
 	struct rpm_clk *r = to_rpm_clk(clk);
 
-	rt_mutex_lock(&rpm_clock_lock);
+	mutex_lock(&rpm_clock_lock);
 
 	if (r->c.rate) {
 		uint32_t value;
@@ -194,7 +166,7 @@ static void rpm_clk_unprepare(struct clk *clk)
 	}
 	r->enabled = false;
 out:
-	rt_mutex_unlock(&rpm_clock_lock);
+	mutex_unlock(&rpm_clock_lock);
 
 	return;
 }
@@ -205,7 +177,7 @@ static int rpm_clk_set_rate(struct clk *clk, unsigned long rate)
 	unsigned long this_khz, this_sleep_khz;
 	int rc = 0;
 
-	rt_mutex_lock(&rpm_clock_lock);
+	mutex_lock(&rpm_clock_lock);
 
 	if (r->enabled) {
 		uint32_t value;
@@ -229,7 +201,7 @@ static int rpm_clk_set_rate(struct clk *clk, unsigned long rate)
 	}
 
 out:
-	rt_mutex_unlock(&rpm_clock_lock);
+	mutex_unlock(&rpm_clock_lock);
 
 	return rc;
 }
@@ -327,28 +299,6 @@ int enable_rpm_scaling(void)
 	return 0;
 }
 
-int vote_bimc(struct rpm_clk *r, uint32_t value)
-{
-	int rc;
-
-	struct msm_rpm_kvp kvp = {
-		.key = r->rpm_key,
-		.data = (void *)&value,
-		.length = sizeof(value),
-	};
-
-	rc = msm_rpm_send_message_noirq(MSM_RPM_CTX_ACTIVE_SET,
-			r->rpm_res_type, r->rpmrs_data->ctx_active_id,
-			&kvp, 1);
-	if (rc < 0) {
-		if (rc != -EPROBE_DEFER)
-			WARN(1, "BIMC vote not sent!\n");
-		return rc;
-	}
-
-	return rc;
-}
-
 struct clk_ops clk_ops_rpm = {
 	.prepare = rpm_clk_prepare,
 	.unprepare = rpm_clk_unprepare,
@@ -391,21 +341,9 @@ static struct rpm_clk *rpm_clk_dt_parser_common(struct device *dev,
 	/* Rely on whoever's called last to setup the circular ref */
 	c = msmclk_lookup_phandle(dev, p);
 	if (!IS_ERR(c)) {
-		uint32_t *sleep = devm_kzalloc(dev, sizeof(uint32_t),
-					       GFP_KERNEL);
-		uint32_t *active =
-			devm_kzalloc(dev, sizeof(uint32_t),
-				     GFP_KERNEL);
-
-		if (!sleep || !active)
-			return ERR_PTR(-ENOMEM);
 		peer = to_rpm_clk(c);
 		peer->peer = rpm;
 		rpm->peer = peer;
-		rpm->last_active_set_vote = active;
-		peer->last_active_set_vote = active;
-		rpm->last_sleep_set_vote = sleep;
-		peer->last_sleep_set_vote = sleep;
 	}
 
 	rpm->rpmrs_data = &clk_rpmrs_data_smd;
@@ -417,8 +355,7 @@ static struct rpm_clk *rpm_clk_dt_parser_common(struct device *dev,
 		dt_err(np, "missing qcom,res-type dt property\n");
 		return ERR_PTR(rc);
 	}
-	if (sscanf(str, "%4c", (char *) &rpm->rpm_res_type) <= 0)
-		return ERR_PTR(-EINVAL);
+	sscanf(str, "%4c", (char *) &rpm->rpm_res_type);
 
 	rc = of_property_read_u32(np, "qcom,res-id", &rpm->rpm_clk_id);
 	if (rc) {
@@ -431,8 +368,7 @@ static struct rpm_clk *rpm_clk_dt_parser_common(struct device *dev,
 		dt_err(np, "missing qcom,key dt property\n");
 		return ERR_PTR(rc);
 	}
-	if (sscanf(str, "%4c", (char *) &rpm->rpm_key) <= 0)
-		return ERR_PTR(-EINVAL);
+	sscanf(str, "%4c", (char *) &rpm->rpm_key);
 	return rpm;
 }
 
