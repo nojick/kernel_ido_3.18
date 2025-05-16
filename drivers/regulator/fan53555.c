@@ -66,6 +66,7 @@ enum {
 	FAN53555_CHIP_ID_03,
 	FAN53555_CHIP_ID_04,
 	FAN53555_CHIP_ID_05,
+	FAN53555_CHIP_ID_12 = 12,
 };
 
 enum {
@@ -212,6 +213,10 @@ static int fan53555_voltages_setup_fairchild(struct fan53555_device_info *di)
 	case FAN53555_CHIP_ID_04:
 		di->vsel_min = 603000;
 		di->vsel_step = 12826;
+		break;
+	case FAN53555_CHIP_ID_12:
+		di->vsel_min = 600000;
+		di->vsel_step = 12500;
 		break;
 	default:
 		dev_err(di->dev,
