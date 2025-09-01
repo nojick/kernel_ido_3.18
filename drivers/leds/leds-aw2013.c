@@ -43,8 +43,8 @@
 #define AW_LED_RESET_DELAY		8
 #define AW2013_VDD_MIN_UV		2600000
 #define AW2013_VDD_MAX_UV		3300000
-#define AW2013_VI2C_MIN_UV		1800000
-#define AW2013_VI2C_MAX_UV		1800000
+#define AW2013_VI2C_MIN_UV		2600000
+#define AW2013_VI2C_MAX_UV		3300000
 
 #define MAX_RISE_TIME_MS		7
 #define MAX_HOLD_TIME_MS		5
@@ -385,7 +385,7 @@ static int aw_2013_check_chipid(struct aw2013_led *led)
 	u8 val;
 
 	aw2013_write(led, AW_REG_RESET, AW_LED_RESET_MASK);
-	usleep(AW_LED_RESET_DELAY);
+	usleep_range(AW_LED_RESET_DELAY, AW_LED_RESET_DELAY);
 	aw2013_read(led, AW_REG_RESET, &val);
 	if (val == AW2013_CHIPID)
 		return 0;
