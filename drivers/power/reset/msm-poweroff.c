@@ -1,4 +1,5 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2016 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,7 +16,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -280,16 +280,23 @@ static void msm_restart_prepare(const char *cmd)
 #endif
 
 	if (qpnp_pon_check_hard_reset_stored()) {
-		/* Set warm reset as true when device is in dload mode */
+		/* Set warm reset as true when device is in dload mode
+		 *  or device doesn't boot up into recovery, bootloader or rtc.
+		 */
 		if (get_dload_mode() ||
 			((cmd != NULL && cmd[0] != '\0') &&
-			!strcmp(cmd, "edl")))
+			strcmp(cmd, "recovery") &&
+			strcmp(cmd, "bootloader") &&
+			strcmp(cmd, "rtc")))
 			need_warm_reset = true;
 	} else {
 		need_warm_reset = (get_dload_mode() ||
-				((cmd != NULL && cmd[0] != '\0') &&
-				strcmp(cmd, "userrequested")));
+				(cmd != NULL && cmd[0] != '\0'));
 	}
+
+#ifdef CONFIG_MSM_PRESERVE_MEM
+	need_warm_reset = true;
+#endif
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 	if (need_warm_reset) {
@@ -311,18 +318,20 @@ static void msm_restart_prepare(const char *cmd)
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
 			__raw_writel(0x77665503, restart_reason);
-		} else if (!strcmp(cmd, "dm-verity device corrupted")) {
-			qpnp_pon_set_restart_reason(
-				PON_RESTART_REASON_DMVERITY_CORRUPTED);
-			__raw_writel(0x77665508, restart_reason);
-		} else if (!strcmp(cmd, "dm-verity enforcing")) {
-			qpnp_pon_set_restart_reason(
-				PON_RESTART_REASON_DMVERITY_ENFORCE);
-			__raw_writel(0x77665509, restart_reason);
-		} else if (!strcmp(cmd, "keys clear")) {
-			qpnp_pon_set_restart_reason(
-				PON_RESTART_REASON_KEYS_CLEAR);
-			__raw_writel(0x7766550a, restart_reason);
+                } else if (!strcmp(cmd, "dm-verity device corrupted")) {
+                        qpnp_pon_set_restart_reason(
+                                PON_RESTART_REASON_DMVERITY_CORRUPTED);
+                        __raw_writel(0x77665508, restart_reason);
+                } else if (!strcmp(cmd, "dm-verity enforcing")) {
+                        qpnp_pon_set_restart_reason(
+                                PON_RESTART_REASON_DMVERITY_ENFORCE);
+                        __raw_writel(0x77665509, restart_reason);
+                } else if (!strcmp(cmd, "keys clear")) {
+                        qpnp_pon_set_restart_reason(
+                                PON_RESTART_REASON_KEYS_CLEAR);
+                        __raw_writel(0x7766550a, restart_reason);
+		} else if (!strncmp(cmd, "fastmmi", 7)) {
+				   __raw_writel(0x77665505, restart_reason);
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
 			int ret;
@@ -333,6 +342,7 @@ static void msm_restart_prepare(const char *cmd)
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
 		} else {
+			qpnp_pon_set_restart_reason(PON_RESTART_REASON_UNKNOWN);
 			__raw_writel(0x77665501, restart_reason);
 		}
 	}
@@ -560,13 +570,12 @@ skip_sysfs_create:
 		}
 	}
 
-	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pshold-base");
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(msm_ps_hold))
 		return PTR_ERR(msm_ps_hold);
 
-	mem = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-					   "tcsr-boot-misc-detect");
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (mem)
 		tcsr_boot_misc_detect = mem->start;
 
