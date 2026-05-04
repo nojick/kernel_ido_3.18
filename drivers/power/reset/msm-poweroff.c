@@ -11,7 +11,7 @@
  * GNU General Public License for more details.
  *
  */
-
+#include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/init.h>
@@ -36,7 +36,6 @@
 #define EMERGENCY_DLOAD_MAGIC1    0x322A4F99
 #define EMERGENCY_DLOAD_MAGIC2    0xC67E4350
 #define EMERGENCY_DLOAD_MAGIC3    0x77777777
-#define EMMC_DLOAD_TYPE		0x2
 
 #define SCM_IO_DISABLE_PMIC_ARBITER	1
 #define SCM_IO_DEASSERT_PS_HOLD		2
@@ -47,23 +46,12 @@
 
 
 static int restart_mode;
-static void *restart_reason;
+void *restart_reason;
 static bool scm_pmic_arbiter_disable_supported;
 static bool scm_deassert_ps_hold_supported;
 /* Download mode master kill-switch */
 static void __iomem *msm_ps_hold;
 static phys_addr_t tcsr_boot_misc_detect;
-static void scm_disable_sdi(void);
-
-#ifdef CONFIG_MSM_DLOAD_MODE
-/* Runtime could be only changed value once.
-* There is no API from TZ to re-enable the registers.
-* So the SDI cannot be re-enabled when it already by-passed.
-*/
-static int download_mode = 1;
-#else
-static const int download_mode;
-#endif
 
 #ifdef CONFIG_MSM_DLOAD_MODE
 #define EDL_MODE_PROP "qcom,msm-imem-emergency_download_mode"
@@ -74,27 +62,13 @@ static void *dload_mode_addr;
 static bool dload_mode_enabled;
 static void *emergency_dload_mode_addr;
 static bool scm_dload_supported;
-static struct kobject dload_kobj;
-static void *dload_type_addr;
 
 static int dload_set(const char *val, struct kernel_param *kp);
-/* interface for exporting attributes */
-struct reset_attribute {
-	struct attribute        attr;
-	ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
-			char *buf);
-	size_t (*store)(struct kobject *kobj, struct attribute *attr,
-			const char *buf, size_t count);
-};
-#define to_reset_attr(_attr) \
-	container_of(_attr, struct reset_attribute, attr)
-#define RESET_ATTR(_name, _mode, _show, _store)	\
-	static struct reset_attribute reset_attr_##_name = \
-			__ATTR(_name, _mode, _show, _store)
+
+static int download_mode;
 
 module_param_call(download_mode, dload_set, param_get_int,
 			&download_mode, 0644);
-
 static int panic_prep_restart(struct notifier_block *this,
 			      unsigned long event, void *ptr)
 {
@@ -194,14 +168,11 @@ static int dload_set(const char *val, struct kernel_param *kp)
 	}
 
 	set_dload_mode(download_mode);
-
+	qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 	return 0;
 }
 #else
-static void set_dload_mode(int on)
-{
-	return;
-}
+#define set_dload_mode(x) do {} while (0)
 
 static void enable_emergency_dload_mode(void)
 {
@@ -213,26 +184,6 @@ static bool get_dload_mode(void)
 	return false;
 }
 #endif
-
-static void scm_disable_sdi(void)
-{
-	int ret;
-	struct scm_desc desc = {
-		.args[0] = 1,
-		.args[1] = 0,
-		.arginfo = SCM_ARGS(2),
-	};
-
-	/* Needed to bypass debug image on some chips */
-	if (!is_scm_armv8())
-		ret = scm_call_atomic2(SCM_SVC_BOOT,
-			       SCM_WDOG_DEBUG_BOOT_PART, 1, 0);
-	else
-		ret = scm_call2_atomic(SCM_SIP_FNID(SCM_SVC_BOOT,
-			  SCM_WDOG_DEBUG_BOOT_PART), &desc);
-	if (ret)
-		pr_err("Failed to disable secure wdog debug: %d\n", ret);
-}
 
 void msm_set_restart_mode(int mode)
 {
@@ -285,6 +236,7 @@ static void msm_restart_prepare(const char *cmd)
 		 */
 		if (get_dload_mode() ||
 			((cmd != NULL && cmd[0] != '\0') &&
+			!strcmp(cmd, "edl") &&
 			strcmp(cmd, "recovery") &&
 			strcmp(cmd, "bootloader") &&
 			strcmp(cmd, "rtc")))
@@ -294,9 +246,7 @@ static void msm_restart_prepare(const char *cmd)
 				(cmd != NULL && cmd[0] != '\0'));
 	}
 
-#ifdef CONFIG_MSM_PRESERVE_MEM
 	need_warm_reset = true;
-#endif
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
 	if (need_warm_reset) {
@@ -313,7 +263,7 @@ static void msm_restart_prepare(const char *cmd)
 		} else if (!strncmp(cmd, "recovery", 8)) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RECOVERY);
-			__raw_writel(0x77665502, restart_reason);
+			__raw_writel(0x6f656d46, restart_reason);
 		} else if (!strcmp(cmd, "rtc")) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
@@ -330,8 +280,8 @@ static void msm_restart_prepare(const char *cmd)
                         qpnp_pon_set_restart_reason(
                                 PON_RESTART_REASON_KEYS_CLEAR);
                         __raw_writel(0x7766550a, restart_reason);
-		} else if (!strncmp(cmd, "fastmmi", 7)) {
-				   __raw_writel(0x77665505, restart_reason);
+		} else if (!strncmp(cmd, "s1bootloader", 12)) {
+				   __raw_writel(0x6f656d53, restart_reason);
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
 			int ret;
@@ -342,9 +292,14 @@ static void msm_restart_prepare(const char *cmd)
 		} else if (!strncmp(cmd, "edl", 3)) {
 			enable_emergency_dload_mode();
 		} else {
+			pr_notice("%s : cmd is %s, set to reboot mode\n", __func__, cmd);
 			qpnp_pon_set_restart_reason(PON_RESTART_REASON_UNKNOWN);
 			__raw_writel(0x77665501, restart_reason);
 		}
+	} else {
+		pr_notice("%s : cmd is NULL, set to reboot mode\n", __func__);
+		qpnp_pon_set_restart_reason(PON_RESTART_REASON_UNKNOWN);
+		__raw_writel(0x77665501, restart_reason);
 	}
 
 	flush_cache_all();
@@ -382,6 +337,13 @@ static void deassert_ps_hold(void)
 
 static void do_msm_restart(enum reboot_mode reboot_mode, const char *cmd)
 {
+	int ret;
+	struct scm_desc desc = {
+		.args[0] = 1,
+		.args[1] = 0,
+		.arginfo = SCM_ARGS(2),
+	};
+
 	pr_notice("Going down for restart now\n");
 
 	msm_restart_prepare(cmd);
@@ -396,7 +358,16 @@ static void do_msm_restart(enum reboot_mode reboot_mode, const char *cmd)
 		msm_trigger_wdog_bite();
 #endif
 
-	scm_disable_sdi();
+	/* Needed to bypass debug image on some chips */
+	if (!is_scm_armv8())
+		ret = scm_call_atomic2(SCM_SVC_BOOT,
+			       SCM_WDOG_DEBUG_BOOT_PART, 1, 0);
+	else
+		ret = scm_call2_atomic(SCM_SIP_FNID(SCM_SVC_BOOT,
+			  SCM_WDOG_DEBUG_BOOT_PART), &desc);
+	if (ret)
+		pr_err("Failed to disable secure wdog debug: %d\n", ret);
+
 	halt_spmi_pmic_arbiter();
 	deassert_ps_hold();
 
@@ -405,11 +376,27 @@ static void do_msm_restart(enum reboot_mode reboot_mode, const char *cmd)
 
 static void do_msm_poweroff(void)
 {
-	pr_notice("Powering off the SoC\n");
+	int ret;
+	struct scm_desc desc = {
+		.args[0] = 1,
+		.args[1] = 0,
+		.arginfo = SCM_ARGS(2),
+	};
 
+	pr_notice("Powering off the SoC\n");
+#ifdef CONFIG_MSM_DLOAD_MODE
 	set_dload_mode(0);
-	scm_disable_sdi();
+#endif
 	qpnp_pon_system_pwr_off(PON_POWER_OFF_SHUTDOWN);
+	/* Needed to bypass debug image on some chips */
+	if (!is_scm_armv8())
+		ret = scm_call_atomic2(SCM_SVC_BOOT,
+			       SCM_WDOG_DEBUG_BOOT_PART, 1, 0);
+	else
+		ret = scm_call2_atomic(SCM_SIP_FNID(SCM_SVC_BOOT,
+			  SCM_WDOG_DEBUG_BOOT_PART), &desc);
+	if (ret)
+		pr_err("Failed to disable wdog debug: %d\n", ret);
 
 	halt_spmi_pmic_arbiter();
 	deassert_ps_hold();
@@ -419,85 +406,18 @@ static void do_msm_poweroff(void)
 	return;
 }
 
-#ifdef CONFIG_MSM_DLOAD_MODE
-static ssize_t attr_show(struct kobject *kobj, struct attribute *attr,
-				char *buf)
+static int msm_reboot_call(struct notifier_block *this,
+			   unsigned long code, void *_cmd)
 {
-	struct reset_attribute *reset_attr = to_reset_attr(attr);
-	ssize_t ret = -EIO;
+	if (code == SYS_DOWN)
+		disable_nonboot_cpus();
 
-	if (reset_attr->show)
-		ret = reset_attr->show(kobj, attr, buf);
-
-	return ret;
+	return NOTIFY_DONE;
 }
 
-static ssize_t attr_store(struct kobject *kobj, struct attribute *attr,
-				const char *buf, size_t count)
-{
-	struct reset_attribute *reset_attr = to_reset_attr(attr);
-	ssize_t ret = -EIO;
-
-	if (reset_attr->store)
-		ret = reset_attr->store(kobj, attr, buf, count);
-
-	return ret;
-}
-
-static const struct sysfs_ops reset_sysfs_ops = {
-	.show	= attr_show,
-	.store	= attr_store,
+static struct notifier_block msm_reboot_notifier = {
+	.notifier_call = msm_reboot_call,
 };
-
-static struct kobj_type reset_ktype = {
-	.sysfs_ops	= &reset_sysfs_ops,
-};
-
-static ssize_t show_emmc_dload(struct kobject *kobj, struct attribute *attr,
-				char *buf)
-{
-	uint32_t read_val, show_val;
-
-	read_val = __raw_readl(dload_type_addr);
-	if (read_val == EMMC_DLOAD_TYPE)
-		show_val = 1;
-	else
-		show_val = 0;
-
-	return snprintf(buf, sizeof(show_val), "%u\n", show_val);
-}
-
-static size_t store_emmc_dload(struct kobject *kobj, struct attribute *attr,
-				const char *buf, size_t count)
-{
-	uint32_t enabled;
-	int ret;
-
-	ret = kstrtouint(buf, 0, &enabled);
-	if (ret < 0)
-		return ret;
-
-	if (!((enabled == 0) || (enabled == 1)))
-		return -EINVAL;
-
-	if (enabled == 1)
-		__raw_writel(EMMC_DLOAD_TYPE, dload_type_addr);
-	else
-		__raw_writel(0, dload_type_addr);
-
-	return count;
-}
-RESET_ATTR(emmc_dload, 0644, show_emmc_dload, store_emmc_dload);
-
-static struct attribute *reset_attrs[] = {
-	&reset_attr_emmc_dload.attr,
-	NULL
-};
-
-static struct attribute_group reset_attr_group = {
-	.attrs = reset_attrs,
-};
-#endif
 
 static int msm_restart_probe(struct platform_device *pdev)
 {
@@ -506,11 +426,12 @@ static int msm_restart_probe(struct platform_device *pdev)
 	struct device_node *np;
 	int ret = 0;
 
+atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
+
 #ifdef CONFIG_MSM_DLOAD_MODE
 	if (scm_is_call_available(SCM_SVC_BOOT, SCM_DLOAD_CMD) > 0)
 		scm_dload_supported = true;
 
-	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
 	np = of_find_compatible_node(NULL, NULL, DL_MODE_PROP);
 	if (!np) {
 		pr_err("unable to find DT imem DLOAD mode node\n");
@@ -529,34 +450,9 @@ static int msm_restart_probe(struct platform_device *pdev)
 			pr_err("unable to map imem EDLOAD mode offset\n");
 	}
 
-	np = of_find_compatible_node(NULL, NULL,
-				"qcom,msm-imem-dload-type");
-	if (!np) {
-		pr_err("unable to find DT imem dload-type node\n");
-		goto skip_sysfs_create;
-	} else {
-		dload_type_addr = of_iomap(np, 0);
-		if (!dload_type_addr) {
-			pr_err("unable to map imem dload-type offset\n");
-			goto skip_sysfs_create;
-		}
-	}
-
-	ret = kobject_init_and_add(&dload_kobj, &reset_ktype,
-			kernel_kobj, "%s", "dload");
-	if (ret) {
-		pr_err("%s:Error in creation kobject_add\n", __func__);
-		kobject_put(&dload_kobj);
-		goto skip_sysfs_create;
-	}
-
-	ret = sysfs_create_group(&dload_kobj, &reset_attr_group);
-	if (ret) {
-		pr_err("%s:Error in creation sysfs_create_group\n", __func__);
-		kobject_del(&dload_kobj);
-	}
-skip_sysfs_create:
 #endif
+
+register_reboot_notifier(&msm_reboot_notifier);
 	np = of_find_compatible_node(NULL, NULL,
 				"qcom,msm-imem-restart_reason");
 	if (!np) {
@@ -589,9 +485,7 @@ skip_sysfs_create:
 		scm_deassert_ps_hold_supported = true;
 
 	set_dload_mode(download_mode);
-	if (!download_mode)
-		scm_disable_sdi();
-
+qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 	return 0;
 
 err_restart_reason:
@@ -620,4 +514,4 @@ static int __init msm_restart_init(void)
 {
 	return platform_driver_register(&msm_restart_driver);
 }
-device_initcall(msm_restart_init);
+pure_initcall(msm_restart_init);
