@@ -1,0 +1,333 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/dts-v1/;
+#include <dt-bindings/clock/msm-clocks-8936.h>
+#include <dt-bindings/clock/msm-cpu-clocks-8939.h>
+#include "msm8939.dtsi"
+#include "dsi-panel-hx8394f-boe-720p-video.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Xiaomi Redmi 3";
+	compatible = "xiaomi,ido", "qcom,msm8939", "qcom,msm8939-qrd-skuk", "qcom,qrd";
+	chassis-type = "handset";
+	qcom,msm-id = <239 0>;
+	qcom,board-id = <0x1000b 11>, <0x2000b 11>;
+
+       firmware: firmware {
+                 android {
+                         compatible = "android,firmware";
+                         fstab {
+                                 compatible = "android,fstab";
+                                 vendor {
+                                         compatible = "android,vendor";
+                                         dev = "/dev/block/platform/soc/7824900.sdhci/by-name/vendor";
+                                         type = "ext4";
+                                         mnt_flags = "ro,barrier=1,discard";
+                                         fsmgr_flags = "wait";
+                                         status = "ok";
+                                 };
+                                 system {
+                                         compatible = "android,system";
+                                         dev = "/dev/block/platform/soc/7824900.sdhci/by-name/system";
+                                        type = "ext4";
+                                     mnt_flags = "ro,barrier=1,discard";
+                                       fsmgr_flags = "wait";
+                                      status = "ok";
+                                 };
+                        };
+                };
+       };
+
+	aliases {
+	};
+#if 0
+	chosen {
+		stdout-path = "serial0";
+		bootargs = "fbcon=nodefer earlycon=tty0 console=tty0";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		framebuffer0: framebuffer@83003000 {
+			status= "okay";
+			compatible = "simple-framebuffer";
+			reg = <0x0 0x83200000 0x0 0x2000000>;
+			width = <720>;
+			height = <1280>;
+			stride = <(720 * 3)>;
+			format = "r8g8b8";
+		};
+
+	};
+
+    reserved-memory {
+		cont_splash_mem: framebuffer@83000000 {
+			compatible = "removed-dma-pool";
+			reg = <0x0 0x83000000 0x0 0x2000000>;
+			no-map;
+		};
+	};
+#endif
+};
+
+&i2c_0 {/* BLSP1 QUP2 */
+	tps65132@3e {
+		compatible = "ti,tps65132";
+		reg = <0x3e>;
+		i2c-pwr-supply = <&pm8916_l6>;
+		ti,en-gpio-lpm;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tps65132_en_default>;
+		regulators {
+			reg_lcd_pos: outp {
+				regulator-name = "outp";
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				ti,discharge-enable;
+				ti,enable-time = <800>;
+				ti,current-limit = <200000>;
+				ti,en-gpio = <&msmgpio 97 0>;
+			};
+
+			reg_lcd_neg: outn {
+				regulator-name = "outn";
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				ti,discharge-enable;
+				ti,enable-time = <800>;
+				ti,current-limit = <40000>;
+				ti,en-gpio = <&msmgpio 98 0>;
+			};
+		};
+	};
+};
+
+&i2c_4 {
+	smb358_otg_vreg: smb358-charger@57 {
+	compatible = "qcom,smb358-charger";
+	reg = <0x57>;
+	interrupt-parent = <&msmgpio>;
+	interrupts = <62 0x0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&smb_int_default>;
+	qcom,irq-gpio = <&msmgpio 62 0x0>;
+	qcom,float-voltage-mv = <4400>;
+	qcom,recharge-mv = <50>;
+	regulator-name = "smb358_otg_vreg";
+	qcom,batt-id-vref-uv = <1800000>;
+	qcom,batt-id-rpullup-kohm = <100>;
+	qcom,fastchg-current-max-ma = <2000>;
+	qcom,iterm-disabled;
+	qcom,chg-inhibit-disabled;
+	qcom,disable-apsd;
+	status = "ok";
+	};
+};
+
+&sdhc_1 {
+	vdd-supply = <&pm8916_l8>;
+	qcom,vdd-voltage-level = <2900000 2900000>;
+	qcom,vdd-current-level = <200 400000>;
+
+	vdd-io-supply = <&pm8916_l5>;
+	qcom,vdd-io-always-on;
+	qcom,vdd-io-lpm-sup;
+	qcom,vdd-io-voltage-level = <1800000 1800000>;
+	qcom,vdd-io-current-level = <200 60000>;
+
+	pinctrl-names = "active", "sleep";
+	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
+	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
+
+	qcom,nonremovable;
+
+	status = "okay";
+};
+
+&sdhc_2 {
+	vdd-supply = <&pm8916_l11>;
+	qcom,vdd-voltage-level = <2800000 2950000>;
+	qcom,vdd-current-level = <15000 400000>;
+
+	vdd-io-supply = <&pm8916_l12>;
+	qcom,vdd-io-voltage-level = <1800000 2950000>;
+	qcom,vdd-io-current-level = <200 50000>;
+
+	pinctrl-names = "active", "sleep";
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+
+	#address-cells = <0>;
+	interrupt-parent = <&sdhc_2>;
+	interrupts = <0 1 2>;
+	#interrupt-cells = <1>;
+	interrupt-map-mask = <0xffffffff>;
+	interrupt-map = <0 &intc 0 125 0
+			1 &intc 0 221 0
+			2 &msmgpio 38 0>;
+	interrupt-names = "hc_irq", "pwr_irq", "status_irq";
+	cd-gpios = <&msmgpio 38 0x1>;
+
+	status = "okay";
+};
+
+#if 0
+&usb_otg {
+	   qcom,hsusb-otg-mode = <3>;
+	   qcom,usbid-gpio = <&msmgpio 110 0>;
+	   pinctrl-names = "default";
+	   pinctrl-0 = <&usbid_default>;
+	   //vbus_otg-supply = <&smb358_otg_vreg>;
+};
+#endif
+
+&bam_dmux {
+	qcom,no-cpu-affinity;
+};
+
+&qcom_tzlog {
+	status = "okay";
+};
+
+&qcom_crypto {
+	status = "okay";
+};
+
+&qcom_cedev {
+	status = "okay";
+};
+
+&qcom_seecom {
+	status = "okay";
+};
+
+&mdss_mdp {
+	qcom,mdss-pref-prim-intf = "dsi";
+};
+
+&msmgpio {
+	pmx_mdss {
+		mdss_dsi_active: mdss_dsi_active {
+			mux {
+				pins = "gpio25";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio25";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		mdss_dsi_suspend: mdss_dsi_suspend {
+			mux {
+				pins = "gpio25";
+				function = "gpio";
+                        };
+			config {
+				pins = "gpio25";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+
+    tps65132_en_default: tps65132-en-default {
+		pins = "gpio97", "gpio98";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-pull-down;
+	};
+
+};
+
+&mdss_dsi0 {
+	pinctrl-names = "mdss_default", "mdss_sleep";
+	pinctrl-0 = <&mdss_dsi_active>;
+	pinctrl-1 = <&mdss_dsi_suspend>;
+	vsp-supply = <&reg_lcd_pos>;
+	vsn-supply = <&reg_lcd_neg>;
+	qcom,dsi-pref-prim-pan = <&dsi_hx8394f_boe_720p_video>;
+	qcom,platform-reset-gpio = <&msmgpio 25 0>;
+
+	/delete-node/ qcom,ctrl-supply-entry@0;
+	#if 0
+	qcom,panel-supply-entries {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "vsp";
+			qcom,supply-min-voltage = <5000000>;
+			qcom,supply-max-voltage = <5000000>;
+			qcom,supply-enable-load = <200>;
+			qcom,supply-disable-load = <0>;
+		};
+
+		qcom,panel-supply-entry@3 {
+			reg = <3>;
+			qcom,supply-name = "vsn";
+			qcom,supply-min-voltage = <5000000>;
+			qcom,supply-max-voltage = <5000000>;
+			qcom,supply-enable-load = <40>;
+			qcom,supply-disable-load = <0>;
+			qcom,supply-post-off-sleep = <3>;
+		};
+	};
+#endif
+};
+
+&dsi_hx8394f_boe_720p_video {
+	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
+	qcom,cont-splash-enabled;
+};
+
+&pm8916_mpps {
+	mpp@a000 { /* MPP 1 */
+		/* VDD_PX */
+		status = "disabled";
+	};
+
+	mpp@a100 { /* MPP 2 */
+		/* HR LED */
+		status = "disabled";
+	};
+
+	mpp@a200 { /* MPP 3 */
+		/* VREF DAC */
+		status = "disabled";
+	};
+
+	mpp@a300 { /* MPP 4 */
+		/* Backlight PWM */
+		qcom,mode = <1>;		/* Digital output */
+		qcom,invert = <0>;		/* Disable invert */
+		qcom,src-sel = <4>;		/* DTEST1 */
+		qcom,vin-sel = <0>;		/* VPH_PWR */
+		qcom,master-en = <1>;		/* Enable MPP */
+	};
+};
+
+&tsens {
+	qcom,sensors = <10>;
+	qcom,slope = <2911 2789 2906 2763 2922 2867 2833 2838 2840 2852>;
+	qcom,sensor-id = <0 1 2 3 5 6 7 8 9 10>;
+};
+
+&firmware {
+	android {
+		fstab {
+			vendor {
+				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/cust";
+			};
+		};
+	};
+};
+

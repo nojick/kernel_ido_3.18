@@ -287,7 +287,7 @@ dtb-$(CONFIG_ARCH_MDM9607) += mdm9607-rumi.dtb \
 	mdm9206-mtp-sdcard.dtb \
 	mdm9206-rcm.dtb
 ifeq ($(CONFIG_MACH_XIAOMI_IDO),y)
-dtb-$(CONFIG_ARCH_MSM8916) += ido2/msm8939-qrd-ido.dtb
+dtb-$(CONFIG_ARCH_MSM8916) += ido/msm8939-xiaomi-ido.dtb
 else
 dtb-$(CONFIG_ARCH_MSM8916) += msm8952-qrd-skum.dtb \
        msm8952-cdp.dtb \

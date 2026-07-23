@@ -1,5 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2016 XiaoMi, Inc.
+/* Copyright (c) 2014-2015, 2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,6 +10,7 @@
  * GNU General Public License for more details.
  */
 
+/* External I2C controlled buck regulators */
 /* External I2C controlled buck regulators */
 
 &i2c_4 {
@@ -27,7 +27,7 @@
 		onnn,min-setpoint = <600000>;
 		pintrl-names = "default";
 		pinctrl-0 = <&ext_buck_vsel_default>;
-		onnn,vsel-gpio = <&msm_gpio 111 1>;
+		onnn,vsel-gpio = <&msmgpio 111 1>;
 		onnn,discharge-enable;
 		onnn,restore-reg;
 	};
@@ -41,38 +41,48 @@
 		regulator-ramp-delay = <1250>;
 		pintrl-names = "default";
 		pinctrl-0 = <&ext_buck_vsel_default>;
-		fairchild,vsel-gpio = <&msm_gpio 111 1>;
+		fairchild,vsel-gpio = <&msmgpio 111 1>;
 		fairchild,restore-reg;
 		fairchild,disable-suspend;
 	};
+#if 0
+	fan53555: fan53555-regulator@60 {
+		compatible = "fcs,fan53555";
+		reg = <0x60>;
+		fcs,suspend-voltage-selector = <1>;
+		regulator-name = "fan53555";
+		//vin-supply = <&pm8916_s2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ext_buck_vsel_default>;
+		regulator-min-microvolt = <1050000>;
+		regulator-max-microvolt = <1350000>;
+		regulator-ramp-delay = <1250>;
+		enable-gpios = <&msmgpio 111 1>;
+		regulator-boot-on;
+		regulator-always-on;
+		fcs,disable-suspend;
+	};
+#endif
 };
 
 /* Memory accelerator and CPR controlled regulators */
 
 &soc {
-	spk_vreg: regulator_spk {
-		compatible = "regulator-fixed";
-		regulator-name = "spk_vreg";
-		startup-delay-us = <0>;
-		enable-active-high;
-		gpio = <&msm_gpio 121 0>;
-	};
-
 	mem_acc_vreg_corner: regulator@1942130 {
 		compatible = "qcom,mem-acc-regulator";
-		reg = <0x1942130 0x4>, <0x58000 0x1000>, <0x1942124 0x4>;
-		reg-names = "acc-sel-l1", "efuse_addr", "acc-l2-custom";
+		reg = <0x1942130 0x4>,<0x58000 0x1000>,<0x1942124 0x4>,<0x1942120 0x4>;
+		reg-names = "acc-sel-l1","efuse_addr","acc-l2-custom","acc-l1-custom";
 		regulator-name = "mem_acc_corner";
 		regulator-min-microvolt = <1>;
 		regulator-max-microvolt = <3>;
-
 		qcom,acc-sel-l1-bit-pos = <0>;
 		qcom,corner-acc-map = <0 0 1>;
 		qcom,l2-acc-custom-data = <0x0 0x0 0x3000>;
-
+		qcom,l1-acc-custom-data = <0x0 0x0 0xc0000>;
 		qcom,override-acc-fuse-sel = <0 30 1 1 0>;
 		qcom,override-corner-acc-map = <0 1 1>;
 		qcom,override-l2-acc-custom-data = <0x0 0x3000 0x3000>;
+		qcom,override-l1-acc-custom-data = <0x0 0x0 0xc0000>;
 	};
 
 	apc_vreg_corner: regulator@b018000 {
@@ -87,9 +97,7 @@
 		qcom,cpr-fuse-corners = <3>;
 		qcom,cpr-voltage-ceiling = <1050000 1150000 1350000>;
 		qcom,cpr-voltage-floor = <1050000 1050000 1137500>;
-		vdd-apc-supply = <&ncp6335d>;
-		vdd-apc-optional-prim-supply = <&ncp6335d>;
-		vdd-apc-optional-sec-supply = <&fan53555>;
+		vdd-apc-supply = <&fan53555>;
 
 		qcom,vdd-mx-corner-map = <4 5 7>;
 		qcom,vdd-mx-vmin-method = <4>;
@@ -103,14 +111,14 @@
 		qcom,cpr-timer-cons-up = <0>;
 		qcom,cpr-timer-cons-down = <2>;
 		qcom,cpr-irq-line = <0>;
-		qcom,cpr-step-quotient = <13>;
-		qcom,cpr-up-threshold = <0>;
+		qcom,cpr-step-quotient = <26>;
+		qcom,cpr-up-threshold = <2>;
 		qcom,cpr-down-threshold = <3>;
 		qcom,cpr-idle-clocks = <15>;
 		qcom,cpr-gcnt-time = <1>;
 		qcom,vdd-apc-step-up-limit = <1>;
 		qcom,vdd-apc-step-down-limit = <1>;
-		qcom,cpr-apc-volt-step = <6250>;
+		qcom,cpr-apc-volt-step = <12500>;
 
 		qcom,cpr-fuse-row = <27 0>;
 		qcom,cpr-fuse-target-quot = <42 24 6>;
@@ -477,8 +485,8 @@
 			regulator-min-microvolt = <1800000>;
 			regulator-max-microvolt = <1800000>;
 			qcom,init-voltage = <1800000>;
-			status = "okay";
 			regulator-always-on;
+			status = "okay";
 		};
 	};
 
