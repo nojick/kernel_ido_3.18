@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -663,7 +663,7 @@
 	};
 
 	rpm_etm0 {
-		compatible = "qcom,coresight-rpm-etm";
+		compatible = "qcom,coresight-remote-etm";
 
 		coresight-id = <39>;
 		coresight-name = "coresight-rpm-etm0";
@@ -671,10 +671,12 @@
 		coresight-outports = <0>;
 		coresight-child-list = <&funnel_in0>;
 		coresight-child-ports = <0>;
+
+		qcom,inst-id = <4>;
 	};
 
 	wcn_etm0 {
-		compatible = "qcom,coresight-wcn-etm";
+		compatible = "qcom,coresight-remote-etm";
 
 		coresight-id = <40>;
 		coresight-name = "coresight-wcn-etm0";
@@ -682,10 +684,12 @@
 		coresight-outports = <0>;
 		coresight-child-list = <&funnel_in3>;
 		coresight-child-ports = <0>;
+
+		qcom,inst-id = <3>;
 	};
 
 	modem_etm0 {
-		compatible = "qcom,coresight-modem-etm";
+		compatible = "qcom,coresight-remote-etm";
 
 		coresight-id = <41>;
 		coresight-name = "coresight-modem-etm0";
@@ -693,6 +697,8 @@
 		coresight-outports = <0>;
 		coresight-child-list = <&funnel_in0>;
 		coresight-child-ports = <2>;
+
+		qcom,inst-id = <2>;
 	};
 
 	fuse: fuse@5e01c {
