@@ -97,7 +97,7 @@ static void devfreq_set_freq_limits(struct devfreq *devfreq)
  * @devfreq:	the devfreq instance
  * @freq:	the target frequency
  */
-int devfreq_get_freq_level(struct devfreq *devfreq, unsigned long freq)
+static int devfreq_get_freq_level(struct devfreq *devfreq, unsigned long freq)
 {
 	int lev;
 
@@ -107,7 +107,6 @@ int devfreq_get_freq_level(struct devfreq *devfreq, unsigned long freq)
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(devfreq_get_freq_level);
 
 /**
  * devfreq_set_freq_table() - Initialize freq_table for the frequency
