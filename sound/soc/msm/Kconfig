@@ -188,9 +188,9 @@ config SND_SOC_MSM8996_VM
 	 also it will enable the machine driver and
 	 the corresponding DAI-links
 
-config SND_SOC_MSM8X16
+config SND_SOC_MSM8X52
 	tristate "SoC Machine driver for MSM8916"
-	depends on ARCH_MSM8953 || ARCH_MSM8937
+	depends on ARCH_MSM8953 || ARCH_MSM8937 || ARCH_MSM8916
 	select SND_SOC_QDSP6V2
 	select SND_SOC_MSM_STUB
 	select SND_SOC_MSM_HOSTLESS_PCM
@@ -218,6 +218,33 @@ config SND_SOC_MSM8X16
 	 interfaces with DSP, also it will enable
 	 the machine driver and the corresponding
 	 DAI-links
+
+config SND_SOC_MSM8X16
+	tristate "SoC Machine driver for MSM8X16 boards"
+	depends on ARCH_MSM8916
+	select SND_SOC_QDSP6V2
+	select SND_SOC_MSM_STUB
+	select SND_SOC_MSM_HOSTLESS_PCM
+	select SND_SOC_MSM8X16_WCD
+	select SND_SOC_WSA881X
+	select SND_SOC_WCD9335
+	select SLIMBUS
+	select MFD_CORE
+	select SND_DYNAMIC_MINORS
+	select QTI_PP
+	select DTS_SRS_TM
+	select DOLBY_DAP
+	select DOLBY_DS2
+	select MSM_QDSP6_APRV3_GLINK
+	select MSM_QDSP6V2_CODECS
+	select SND_SOC_CPE
+	select SND_HWDEP
+	help
+	 To add support for SoC audio on MSM8X16.
+	 This will enable sound soc drivers which
+	 interfaces with DSP, also it will enable
+	 the machine drivers and the corresponding
+	 DAI-links.
 
 config SND_SOC_MDM9650
         tristate "SoC Machine driver for MDM9650 or SDX20 boards"
