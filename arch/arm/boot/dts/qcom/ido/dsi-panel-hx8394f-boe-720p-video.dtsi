@@ -61,9 +61,10 @@
 		qcom,mdss-dsi-panel-timings = [8C 1E 14 00 46 48 1A 22 18 03 04 00];
 		qcom,mdss-dsi-t-clk-post = <0x04>;
 		qcom,mdss-dsi-t-clk-pre = <0x1C>;
-		qcom,mdss-dsi-hfp-power-mode;
-		qcom,mdss-dsi-hbp-power-mode;
-		qcom,mdss-dsi-hsa-power-mode;
+		qcom,esd-check-enabled;
+		//qcom,mdss-dsi-hfp-power-mode;
+		//qcom,mdss-dsi-hbp-power-mode;
+		//qcom,mdss-dsi-hsa-power-mode;
 		/*qcom,mdss-dsi-panel-status-command2 = [06 01 00 01 05 00 02 09 08];*/
 		qcom,mdss-dsi-panel-status-command = [06 01 00 01 05 00 02 D9 08];
 		/*qcom,mdss-dsi-panel-status-command-num = <2>;*/
@@ -84,6 +85,12 @@
 		qcom,mdss-pan-physical-height-dimension = <110>;
 		qcom,mdss-dsi-lp11-init;
 		qcom,mdss-dsi-init-delay-us = <50000>;
+		qcom,mdss-dsi-tx-eot-append;
+		qcom,mdss-mdp-transfer-time-us = <12000>;
+		qcom,mdss-tear-check-sync-cfg-height = <2580>;
+                qcom,ulps-enabled;
+                qcom,suspend-ulps-enabled;
+                qcom,panel-allow-phy-poweroff;
 
 	};
 };
