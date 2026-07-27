@@ -206,6 +206,10 @@
 	status = "okay";
 };
 
+&pm8916_vib{
+	status = "okay";
+};
+
 &mdss_mdp {
 	qcom,mdss-pref-prim-intf = "dsi";
 };
