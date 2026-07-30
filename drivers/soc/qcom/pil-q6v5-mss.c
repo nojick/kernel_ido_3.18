@@ -89,7 +89,7 @@ static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 			__func__);
 	else
 		pr_err("%s: Fatal error on the modem\n", __func__);
-	subsys_set_crash_status(drv->subsys, CRASH_STATUS_ERR_FATAL);
+	subsys_set_crash_status(drv->subsys, true);
 	restart_modem(drv);
 	return IRQ_HANDLED;
 }
