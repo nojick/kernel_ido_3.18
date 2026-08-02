@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -24,7 +24,6 @@
 #define GPS	0
 #define CHECK	0
 #define FREE	1
-#define MEMSHARE_GUARD_BYTES	(4*1024)
 
 struct mem_blocks {
 	/* Client Id information */
@@ -38,11 +37,7 @@ struct mem_blocks {
 	/* Guaranteed Memory */
 	uint32_t guarantee;
 	/* Memory alloted or not */
-	uint32_t allotted;
-	/* Memory allocation request received or not */
-	uint32_t alloc_request;
-	/* Allocation on request from a client*/
-	uint32_t client_request;
+	uint32_t alloted;
 	/* Size required for client */
 	uint32_t size;
 	/*

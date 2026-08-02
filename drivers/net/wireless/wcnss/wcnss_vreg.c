@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2015, 2018-2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2015, 2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+
 
 static void __iomem *msm_wcnss_base;
 static LIST_HEAD(power_on_lock_list);
@@ -47,7 +48,6 @@ static int is_power_on;
 #define WCN3620A      0x5112
 #define WCN3610       0x9101
 #define WCN3610V1     0x9110
-#define WCN3615       0x8110
 
 #define WCNSS_PMU_CFG_IRIS_XO_CFG          BIT(3)
 #define WCNSS_PMU_CFG_IRIS_XO_EN           BIT(4)
@@ -72,33 +72,23 @@ static int is_power_on;
 
 struct vregs_info {
 	const char * const name;
-	const char * const curr;
-	const char * const volt;
 	int state;
-	bool required;
 	struct regulator *regulator;
 };
 
 /* IRIS regulators for Pronto hardware */
-static struct vregs_info iris_vregs[] = {
-	{"qcom,iris-vddxo", "qcom,iris-vddxo-current",
-	"qcom,iris-vddxo-voltage-level", VREG_NULL_CONFIG, true, NULL},
-	{"qcom,iris-vddrfa", "qcom,iris-vddrfa-current",
-	"qcom,iris-vddrfa-voltage-level", VREG_NULL_CONFIG, true, NULL},
-	{"qcom,iris-vddpa", "qcom,iris-vddpa-current",
-	"qcom,iris-vddpa-voltage-level", VREG_NULL_CONFIG, false, NULL},
-	{"qcom,iris-vdddig", "qcom,iris-vdddig-current",
-	"qcom,iris-vdddig-voltage-level", VREG_NULL_CONFIG, true, NULL},
+static struct vregs_info iris_vregs_pronto[] = {
+	{"qcom,iris-vddxo",  VREG_NULL_CONFIG, NULL},
+	{"qcom,iris-vddrfa", VREG_NULL_CONFIG, NULL},
+	{"qcom,iris-vddpa",  VREG_NULL_CONFIG, NULL},
+	{"qcom,iris-vdddig", VREG_NULL_CONFIG, NULL},
 };
 
 /* WCNSS regulators for Pronto hardware */
 static struct vregs_info pronto_vregs[] = {
-	{"qcom,pronto-vddmx", "qcom,pronto-vddmx-current",
-	"qcom,vddmx-voltage-level", VREG_NULL_CONFIG, true, NULL},
-	{"qcom,pronto-vddcx", "qcom,pronto-vddcx-current",
-	"qcom,vddcx-voltage-level", VREG_NULL_CONFIG, true, NULL},
-	{"qcom,pronto-vddpx", "qcom,pronto-vddpx-current",
-	"qcom,vddpx-voltage-level", VREG_NULL_CONFIG, true, NULL},
+	{"qcom,pronto-vddmx",  VREG_NULL_CONFIG, NULL},
+	{"qcom,pronto-vddcx",  VREG_NULL_CONFIG, NULL},
+	{"qcom,pronto-vddpx",  VREG_NULL_CONFIG, NULL},
 };
 
 struct host_driver {
@@ -109,9 +99,9 @@ struct host_driver {
 enum {
 	IRIS_3660, /* also 3660A and 3680 */
 	IRIS_3620,
-	IRIS_3610,
-	IRIS_3615
+	IRIS_3610
 };
+
 
 int xo_auto_detect(u32 reg)
 {
@@ -127,9 +117,6 @@ int xo_auto_detect(u32 reg)
 	case IRIS_3610:
 		return WCNSS_XO_19MHZ;
 
-	case IRIS_3615:
-		return WCNSS_XO_19MHZ;
-
 	default:
 		return WCNSS_XO_INVALID;
 	}
@@ -138,7 +125,7 @@ int xo_auto_detect(u32 reg)
 int wcnss_get_iris_name(char *iris_name)
 {
 	struct wcnss_wlan_config *cfg = NULL;
-	u32  iris_id;
+	u32 iris_id;
 
 	cfg = wcnss_get_wlan_config();
 
@@ -171,9 +158,6 @@ int wcnss_get_iris_name(char *iris_name)
 	case WCN3610V1:
 		memcpy(iris_name, "WCN3610V1", sizeof("WCN3610V1"));
 		break;
-	case WCN3615:
-		memcpy(iris_name, "WCN3615", sizeof("WCN3615"));
-		break;
 	default:
 		return 1;
 	}
@@ -196,141 +180,10 @@ int validate_iris_chip_id(u32 reg)
 	case WCN3620A:
 	case WCN3610:
 	case WCN3610V1:
-	case WCN3615:
 		return 0;
 	default:
 		return 1;
 	}
-}
-
-void wcnss_free_regulator(void)
-{
-	int vreg_i;
-
-	/* Free pronto voltage regulators from device node */
-	for (vreg_i = 0; vreg_i < PRONTO_REGULATORS; vreg_i++) {
-		if (pronto_vregs[vreg_i].state) {
-			regulator_put(pronto_vregs[vreg_i].regulator);
-			pronto_vregs[vreg_i].state = VREG_NULL_CONFIG;
-		}
-	}
-
-	/* Free IRIS voltage regulators from device node */
-	for (vreg_i = 0; vreg_i < IRIS_REGULATORS; vreg_i++) {
-		if (iris_vregs[vreg_i].state) {
-			regulator_put(iris_vregs[vreg_i].regulator);
-			iris_vregs[vreg_i].state = VREG_NULL_CONFIG;
-		}
-	}
-}
-
-static int
-wcnss_dt_parse_vreg_level(struct device *dev, int index,
-			  const char *current_vreg_name, const char *vreg_name,
-			  struct vregs_level *vlevel)
-{
-	int ret = 0;
-	/* array used to store nominal, low and high voltage values */
-	u32 voltage_levels[3], current_vreg;
-
-	ret = of_property_read_u32_array(dev->of_node, vreg_name,
-					 voltage_levels,
-					 ARRAY_SIZE(voltage_levels));
-	if (ret) {
-		wcnss_log(ERR, "error reading %s property\n", vreg_name);
-		return ret;
-	}
-
-	vlevel[index].nominal_min = voltage_levels[0];
-	vlevel[index].low_power_min = voltage_levels[1];
-	vlevel[index].max_voltage = voltage_levels[2];
-
-	ret = of_property_read_u32(dev->of_node, current_vreg_name,
-				   &current_vreg);
-	if (ret) {
-		wcnss_log(ERR, "error reading %s property\n",
-			  current_vreg_name);
-		return ret;
-	}
-
-	vlevel[index].uA_load = current_vreg;
-
-	return ret;
-}
-
-int
-wcnss_parse_voltage_regulator(struct wcnss_wlan_config *wlan_config,
-			      struct device *dev)
-{
-	int rc, vreg_i;
-
-	/* Parse pronto voltage regulators from device node */
-	for (vreg_i = 0; vreg_i < PRONTO_REGULATORS; vreg_i++) {
-		pronto_vregs[vreg_i].regulator =
-			regulator_get(dev, pronto_vregs[vreg_i].name);
-		if (IS_ERR(pronto_vregs[vreg_i].regulator)) {
-			if (pronto_vregs[vreg_i].required) {
-				rc = PTR_ERR(pronto_vregs[vreg_i].regulator);
-				wcnss_log(ERR,
-					"regulator get of %s failed (%d)\n",
-					pronto_vregs[vreg_i].name, rc);
-				goto wcnss_vreg_get_err;
-			} else {
-				wcnss_log(DBG,
-				"Skip optional regulator configuration: %s\n",
-				pronto_vregs[vreg_i].name);
-				continue;
-			}
-		}
-
-		pronto_vregs[vreg_i].state |= VREG_GET_REGULATOR_MASK;
-		rc = wcnss_dt_parse_vreg_level(dev, vreg_i,
-					       pronto_vregs[vreg_i].curr,
-					       pronto_vregs[vreg_i].volt,
-					       wlan_config->pronto_vlevel);
-		if (rc) {
-			wcnss_log(ERR,
-				  "error reading voltage-level property\n");
-			goto wcnss_vreg_get_err;
-		}
-	}
-
-	/* Parse iris voltage regulators from device node */
-	for (vreg_i = 0; vreg_i < IRIS_REGULATORS; vreg_i++) {
-		iris_vregs[vreg_i].regulator =
-			regulator_get(dev, iris_vregs[vreg_i].name);
-		if (IS_ERR(iris_vregs[vreg_i].regulator)) {
-			if (iris_vregs[vreg_i].required) {
-				rc = PTR_ERR(iris_vregs[vreg_i].regulator);
-				wcnss_log(ERR,
-					"regulator get of %s failed (%d)\n",
-					iris_vregs[vreg_i].name, rc);
-				goto wcnss_vreg_get_err;
-			} else {
-				wcnss_log(DBG,
-				"Skip optional regulator configuration: %s\n",
-				iris_vregs[vreg_i].name);
-				continue;
-			}
-		}
-
-		iris_vregs[vreg_i].state |= VREG_GET_REGULATOR_MASK;
-		rc = wcnss_dt_parse_vreg_level(dev, vreg_i,
-					       iris_vregs[vreg_i].curr,
-					       iris_vregs[vreg_i].volt,
-					       wlan_config->iris_vlevel);
-		if (rc) {
-			wcnss_log(ERR,
-				  "error reading voltage-level property\n");
-			goto wcnss_vreg_get_err;
-		}
-	}
-
-	return 0;
-
-wcnss_vreg_get_err:
-	wcnss_free_regulator();
-	return rc;
 }
 
 void  wcnss_iris_reset(u32 reg, void __iomem *pmu_conf_reg)
@@ -351,8 +204,8 @@ void  wcnss_iris_reset(u32 reg, void __iomem *pmu_conf_reg)
 
 static int
 configure_iris_xo(struct device *dev,
-		  struct wcnss_wlan_config *cfg,
-		  int on, int *iris_xo_set)
+			struct wcnss_wlan_config *cfg,
+			int on, int *iris_xo_set)
 {
 	u32 reg = 0, i = 0;
 	u32 iris_reg = WCNSS_INVALID_IRIS_REG;
@@ -374,7 +227,7 @@ configure_iris_xo(struct device *dev,
 
 		clk = clk_get(dev, "xo");
 		if (IS_ERR(clk)) {
-			wcnss_log(ERR, "Couldn't get xo clock\n");
+			pr_err("Couldn't get xo clock\n");
 			return PTR_ERR(clk);
 		}
 
@@ -384,7 +237,7 @@ configure_iris_xo(struct device *dev,
 
 		clk = clk_get(dev, "cxo");
 		if (IS_ERR(clk)) {
-			wcnss_log(ERR, "Couldn't get cxo clock\n");
+			pr_err("Couldn't get cxo clock\n");
 			return PTR_ERR(clk);
 		}
 	}
@@ -392,21 +245,21 @@ configure_iris_xo(struct device *dev,
 	if (on) {
 		msm_wcnss_base = cfg->msm_wcnss_base;
 		if (!msm_wcnss_base) {
-			wcnss_log(ERR, "ioremap wcnss physical failed\n");
+			pr_err("ioremap wcnss physical failed\n");
 			goto fail;
 		}
 
 		/* Enable IRIS XO */
 		rc = clk_prepare_enable(clk);
 		if (rc) {
-			wcnss_log(ERR, "clk enable failed\n");
+			pr_err("clk enable failed\n");
 			goto fail;
 		}
 
 		/* NV bit is set to indicate that platform driver is capable
 		 * of doing NV download.
 		 */
-		wcnss_log(DBG, "Indicate NV bin download\n");
+		pr_debug("wcnss: Indicate NV bin download\n");
 		spare_reg = msm_wcnss_base + spare_offset;
 		reg = readl_relaxed(spare_reg);
 		reg |= NVBIN_DLND_BIT;
@@ -443,11 +296,10 @@ configure_iris_xo(struct device *dev,
 					cpu_relax();
 
 				iris_reg = readl_relaxed(iris_read_reg);
-				wcnss_log(INFO, "IRIS Reg: %08x\n", iris_reg);
+				pr_info("wcnss: IRIS Reg: %08x\n", iris_reg);
 
 				if (validate_iris_chip_id(iris_reg) && i >= 4) {
-					wcnss_log(INFO,
-						"IRIS Card absent/invalid\n");
+					pr_info("wcnss: IRIS Card absent/invalid\n");
 					auto_detect = WCNSS_XO_INVALID;
 					/* Reset iris read bit */
 					reg &= ~WCNSS_PMU_CFG_IRIS_XO_READ;
@@ -457,8 +309,7 @@ configure_iris_xo(struct device *dev,
 					reg &= ~(WCNSS_PMU_CFG_IRIS_XO_MODE);
 					goto xo_configure;
 				} else if (!validate_iris_chip_id(iris_reg)) {
-					wcnss_log(DBG,
-						  "IRIS Card is present\n");
+					pr_debug("wcnss: IRIS Card is present\n");
 					break;
 				}
 				reg &= ~WCNSS_PMU_CFG_IRIS_XO_READ;
@@ -470,20 +321,19 @@ configure_iris_xo(struct device *dev,
 			/* Reset iris read bit */
 			reg &= ~WCNSS_PMU_CFG_IRIS_XO_READ;
 
-		} else if (wcnss_xo_auto_detect_enabled()) {
+		} else if (wcnss_xo_auto_detect_enabled())
 			/* Default to 48 MHZ */
 			auto_detect = WCNSS_XO_48MHZ;
-		} else {
+		else
 			auto_detect = WCNSS_XO_INVALID;
-		}
 
 		cfg->iris_id = iris_reg;
 
 		/* Clear XO_MODE[b2:b1] bits. Clear implies 19.2 MHz TCXO */
 		reg &= ~(WCNSS_PMU_CFG_IRIS_XO_MODE);
 
-		if ((use_48mhz_xo && auto_detect == WCNSS_XO_INVALID) ||
-		    auto_detect ==  WCNSS_XO_48MHZ) {
+		if ((use_48mhz_xo && auto_detect == WCNSS_XO_INVALID)
+				|| auto_detect ==  WCNSS_XO_48MHZ) {
 			reg |= WCNSS_PMU_CFG_IRIS_XO_MODE_48;
 
 			if (iris_xo_set)
@@ -510,28 +360,29 @@ xo_configure:
 		writel_relaxed(reg, pmu_conf_reg);
 		clk_disable_unprepare(clk);
 
-		if ((!use_48mhz_xo && auto_detect == WCNSS_XO_INVALID) ||
-		    auto_detect ==  WCNSS_XO_19MHZ) {
+		if ((!use_48mhz_xo && auto_detect == WCNSS_XO_INVALID)
+				|| auto_detect ==  WCNSS_XO_19MHZ) {
+
 			clk_rf = clk_get(dev, "rf_clk");
 			if (IS_ERR(clk_rf)) {
-				wcnss_log(ERR, "Couldn't get rf_clk\n");
+				pr_err("Couldn't get rf_clk\n");
 				goto fail;
 			}
 
 			rc = clk_prepare_enable(clk_rf);
 			if (rc) {
-				wcnss_log(ERR, "clk_rf enable failed\n");
+				pr_err("clk_rf enable failed\n");
 				goto fail;
 			}
 			if (iris_xo_set)
 				*iris_xo_set = WCNSS_XO_19MHZ;
 		}
 
-	}  else if ((!use_48mhz_xo && auto_detect == WCNSS_XO_INVALID) ||
-		    auto_detect ==  WCNSS_XO_19MHZ) {
+	}  else if ((!use_48mhz_xo && auto_detect == WCNSS_XO_INVALID)
+			|| auto_detect ==  WCNSS_XO_19MHZ) {
 		clk_rf = clk_get(dev, "rf_clk");
 		if (IS_ERR(clk_rf)) {
-			wcnss_log(ERR, "Couldn't get rf_clk\n");
+			pr_err("Couldn't get rf_clk\n");
 			goto fail;
 		}
 		clk_disable_unprepare(clk_rf);
@@ -543,7 +394,7 @@ xo_configure:
 fail:
 	clk_put(clk);
 
-	if (clk_rf)
+	if (clk_rf != NULL)
 		clk_put(clk_rf);
 
 	return rc;
@@ -559,23 +410,27 @@ static void wcnss_vregs_off(struct vregs_info regulators[], uint size,
 	cfg = wcnss_get_wlan_config();
 
 	if (!cfg) {
-		wcnss_log(ERR, "Failed to get WLAN configuration\n");
+		pr_err("Failed to get WLAN configuration\n");
 		return;
 	}
 
 	/* Regulators need to be turned off in the reverse order */
-	for (i = (size - 1); i >= 0; i--) {
+	for (i = (size-1); i >= 0; i--) {
 		if (regulators[i].state == VREG_NULL_CONFIG)
 			continue;
 
+		if (cfg->wcn_external_gpio_support) {
+			if (!memcmp(regulators[i].name, VDD_PA, sizeof(VDD_PA)))
+				continue;
+		}
+
 		/* Remove PWM mode */
 		if (regulators[i].state & VREG_OPTIMUM_MODE_MASK) {
-			rc = regulator_set_load(regulators[i].regulator, 0);
-			if (rc < 0) {
-				wcnss_log(ERR,
-					"regulator set load(%s) failed (%d)\n",
-				       regulators[i].name, rc);
-			}
+			rc = regulator_set_optimum_mode(
+					regulators[i].regulator, 0);
+			if (rc < 0)
+				pr_err("regulator_set_optimum_mode(%s) failed (%d)\n",
+						regulators[i].name, rc);
 		}
 
 		/* Set voltage to lowest level */
@@ -583,39 +438,41 @@ static void wcnss_vregs_off(struct vregs_info regulators[], uint size,
 			if (cfg->is_pronto_vadc) {
 				if (cfg->vbatt < WCNSS_VBATT_THRESHOLD &&
 				    !memcmp(regulators[i].name,
-					    VDD_PA, sizeof(VDD_PA))) {
+				    VDD_PA, sizeof(VDD_PA))) {
 					voltage_level[i].max_voltage =
 						WCNSS_VBATT_LOW;
 				}
 			}
 
 			rc = regulator_set_voltage(regulators[i].regulator,
-						   voltage_level[i].
-						   low_power_min,
-						   voltage_level[i].
-						   max_voltage);
+						voltage_level[i].low_power_min,
+						voltage_level[i].max_voltage);
 
 			if (rc)
-				wcnss_log(ERR,
-				"regulator_set_voltage(%s) failed (%d)\n",
-				regulators[i].name, rc);
+				pr_err("regulator_set_voltage(%s) failed (%d)\n",
+						regulators[i].name, rc);
 		}
 
 		/* Disable regulator */
 		if (regulators[i].state & VREG_ENABLE_MASK) {
 			rc = regulator_disable(regulators[i].regulator);
 			if (rc < 0)
-				wcnss_log(ERR, "vreg %s disable failed (%d)\n",
-				       regulators[i].name, rc);
+				pr_err("vreg %s disable failed (%d)\n",
+						regulators[i].name, rc);
 		}
-	}
 
+		/* Free the regulator source */
+		if (regulators[i].state & VREG_GET_REGULATOR_MASK)
+			regulator_put(regulators[i].regulator);
+
+		regulators[i].state = VREG_NULL_CONFIG;
+	}
 }
 
 /* Common helper routine to turn on all WCNSS & IRIS vregs */
 static int wcnss_vregs_on(struct device *dev,
-			  struct vregs_info regulators[], uint size,
-			  struct vregs_level *voltage_level)
+		struct vregs_info regulators[], uint size,
+		struct vregs_level *voltage_level)
 {
 	int i, rc = 0, reg_cnt;
 	struct wcnss_wlan_config *cfg;
@@ -623,15 +480,28 @@ static int wcnss_vregs_on(struct device *dev,
 	cfg = wcnss_get_wlan_config();
 
 	if (!cfg) {
-		wcnss_log(ERR, "Failed to get WLAN configuration\n");
+		pr_err("Failed to get WLAN configuration\n");
 		return -EINVAL;
 	}
 
 	for (i = 0; i < size; i++) {
-		if (regulators[i].state == VREG_NULL_CONFIG)
-			continue;
+		if (cfg->wcn_external_gpio_support) {
+			if (!memcmp(regulators[i].name, VDD_PA, sizeof(VDD_PA)))
+				continue;
+		}
 
+		/* Get regulator source */
+		regulators[i].regulator =
+			regulator_get(dev, regulators[i].name);
+		if (IS_ERR(regulators[i].regulator)) {
+			rc = PTR_ERR(regulators[i].regulator);
+				pr_err("regulator get of %s failed (%d)\n",
+					regulators[i].name, rc);
+				goto fail;
+		}
+		regulators[i].state |= VREG_GET_REGULATOR_MASK;
 		reg_cnt = regulator_count_voltages(regulators[i].regulator);
+
 		/* Set voltage to nominal. Exclude swtiches e.g. LVS */
 		if ((voltage_level[i].nominal_min ||
 		     voltage_level[i].max_voltage) && (reg_cnt > 0)) {
@@ -647,14 +517,12 @@ static int wcnss_vregs_on(struct device *dev,
 			}
 
 			rc = regulator_set_voltage(regulators[i].regulator,
-						   voltage_level[i].nominal_min,
-						   voltage_level[i].
-						   max_voltage);
+					voltage_level[i].nominal_min,
+					voltage_level[i].max_voltage);
 
 			if (rc) {
-				wcnss_log(ERR,
-				"regulator_set_voltage(%s) failed (%d)\n",
-				       regulators[i].name, rc);
+				pr_err("regulator_set_voltage(%s) failed (%d)\n",
+						regulators[i].name, rc);
 				goto fail;
 			}
 			regulators[i].state |= VREG_SET_VOLTAGE_MASK;
@@ -662,12 +530,11 @@ static int wcnss_vregs_on(struct device *dev,
 
 		/* Vote for PWM/PFM mode if needed */
 		if (voltage_level[i].uA_load && (reg_cnt > 0)) {
-			rc = regulator_set_load(regulators[i].regulator,
-						voltage_level[i].uA_load);
+			rc = regulator_set_optimum_mode(regulators[i].regulator,
+					voltage_level[i].uA_load);
 			if (rc < 0) {
-				wcnss_log(ERR,
-				"regulator set load(%s) failed (%d)\n",
-				       regulators[i].name, rc);
+				pr_err("regulator_set_optimum_mode(%s) failed (%d)\n",
+						regulators[i].name, rc);
 				goto fail;
 			}
 			regulators[i].state |= VREG_OPTIMUM_MODE_MASK;
@@ -676,8 +543,8 @@ static int wcnss_vregs_on(struct device *dev,
 		/* Enable the regulator */
 		rc = regulator_enable(regulators[i].regulator);
 		if (rc) {
-			wcnss_log(ERR, "vreg %s enable failed (%d)\n",
-			       regulators[i].name, rc);
+			pr_err("vreg %s enable failed (%d)\n",
+				regulators[i].name, rc);
 			goto fail;
 		}
 		regulators[i].state |= VREG_ENABLE_MASK;
@@ -688,40 +555,44 @@ static int wcnss_vregs_on(struct device *dev,
 fail:
 	wcnss_vregs_off(regulators, size, voltage_level);
 	return rc;
+
 }
 
 static void wcnss_iris_vregs_off(enum wcnss_hw_type hw_type,
-				 struct wcnss_wlan_config *cfg)
+					struct wcnss_wlan_config *cfg)
 {
 	switch (hw_type) {
 	case WCNSS_PRONTO_HW:
-		wcnss_vregs_off(iris_vregs, ARRAY_SIZE(iris_vregs),
+		wcnss_vregs_off(iris_vregs_pronto,
+				ARRAY_SIZE(iris_vregs_pronto),
 				cfg->iris_vlevel);
 		break;
 	default:
-		wcnss_log(ERR, "%s invalid hardware %d\n", __func__, hw_type);
+		pr_err("%s invalid hardware %d\n", __func__, hw_type);
+
 	}
 }
 
 static int wcnss_iris_vregs_on(struct device *dev,
-			       enum wcnss_hw_type hw_type,
-			       struct wcnss_wlan_config *cfg)
+				enum wcnss_hw_type hw_type,
+				struct wcnss_wlan_config *cfg)
 {
 	int ret = -1;
 
 	switch (hw_type) {
 	case WCNSS_PRONTO_HW:
-		ret = wcnss_vregs_on(dev, iris_vregs, ARRAY_SIZE(iris_vregs),
+		ret = wcnss_vregs_on(dev, iris_vregs_pronto,
+				     ARRAY_SIZE(iris_vregs_pronto),
 				     cfg->iris_vlevel);
 		break;
 	default:
-		wcnss_log(ERR, "%s invalid hardware %d\n", __func__, hw_type);
+		pr_err("%s invalid hardware %d\n", __func__, hw_type);
 	}
 	return ret;
 }
 
 static void wcnss_core_vregs_off(enum wcnss_hw_type hw_type,
-				 struct wcnss_wlan_config *cfg)
+					struct wcnss_wlan_config *cfg)
 {
 	switch (hw_type) {
 	case WCNSS_PRONTO_HW:
@@ -729,13 +600,14 @@ static void wcnss_core_vregs_off(enum wcnss_hw_type hw_type,
 				ARRAY_SIZE(pronto_vregs), cfg->pronto_vlevel);
 		break;
 	default:
-		wcnss_log(ERR, "%s invalid hardware %d\n", __func__, hw_type);
+		pr_err("%s invalid hardware %d\n", __func__, hw_type);
 	}
+
 }
 
 static int wcnss_core_vregs_on(struct device *dev,
-			       enum wcnss_hw_type hw_type,
-			       struct wcnss_wlan_config *cfg)
+				enum wcnss_hw_type hw_type,
+				struct wcnss_wlan_config *cfg)
 {
 	int ret = -1;
 
@@ -746,15 +618,16 @@ static int wcnss_core_vregs_on(struct device *dev,
 				     cfg->pronto_vlevel);
 		break;
 	default:
-		wcnss_log(ERR, "%s invalid hardware %d\n", __func__, hw_type);
+		pr_err("%s invalid hardware %d\n", __func__, hw_type);
 	}
 
 	return ret;
+
 }
 
 int wcnss_wlan_power(struct device *dev,
-		     struct wcnss_wlan_config *cfg,
-		     enum wcnss_opcode on, int *iris_xo_set)
+		struct wcnss_wlan_config *cfg,
+		enum wcnss_opcode on, int *iris_xo_set)
 {
 	int rc = 0;
 	enum wcnss_hw_type hw_type = wcnss_hardware_type();
@@ -763,19 +636,19 @@ int wcnss_wlan_power(struct device *dev,
 	if (on) {
 		/* RIVA regulator settings */
 		rc = wcnss_core_vregs_on(dev, hw_type,
-					 cfg);
+			cfg);
 		if (rc)
 			goto fail_wcnss_on;
 
 		/* IRIS regulator settings */
 		rc = wcnss_iris_vregs_on(dev, hw_type,
-					 cfg);
+			cfg);
 		if (rc)
 			goto fail_iris_on;
 
 		/* Configure IRIS XO */
 		rc = configure_iris_xo(dev, cfg,
-				       WCNSS_WLAN_SWITCH_ON, iris_xo_set);
+				WCNSS_WLAN_SWITCH_ON, iris_xo_set);
 		if (rc)
 			goto fail_iris_xo;
 
@@ -784,7 +657,7 @@ int wcnss_wlan_power(struct device *dev,
 	}  else if (is_power_on) {
 		is_power_on = false;
 		configure_iris_xo(dev, cfg,
-				  WCNSS_WLAN_SWITCH_OFF, NULL);
+				WCNSS_WLAN_SWITCH_OFF, NULL);
 		wcnss_iris_vregs_off(hw_type, cfg);
 		wcnss_core_vregs_off(hw_type, cfg);
 	}
@@ -817,7 +690,7 @@ int wcnss_req_power_on_lock(char *driver_name)
 	if (!driver_name)
 		goto err;
 
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
+	node = kmalloc(sizeof(struct host_driver), GFP_KERNEL);
 	if (!node)
 		goto err;
 	strlcpy(node->name, driver_name, sizeof(node->name));
@@ -843,7 +716,7 @@ int wcnss_free_power_on_lock(char *driver_name)
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(node, &power_on_lock_list, list) {
-		if (!strcmp(node->name, driver_name)) {
+		if (!strncmp(node->name, driver_name, sizeof(node->name))) {
 			list_del(&node->list);
 			kfree(node);
 			ret = 0;

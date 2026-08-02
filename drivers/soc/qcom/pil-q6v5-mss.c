@@ -41,6 +41,7 @@
 #define PROXY_TIMEOUT_MS	10000
 #define MAX_SSR_REASON_LEN	130U
 #define STOP_ACK_TIMEOUT_MS	1000
+#define QDSP6SS_NMI_STATUS	0x44
 
 #define subsys_to_drv(d) container_of(d, struct modem_data, subsys_desc)
 
@@ -77,13 +78,18 @@ static void restart_modem(struct modem_data *drv)
 static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
 {
 	struct modem_data *drv = subsys_to_drv(dev_id);
+	u32 nmi_status = readl_relaxed(drv->q6->reg_base + QDSP6SS_NMI_STATUS);
 
 	/* Ignore if we're the one that set the force stop GPIO */
 	if (drv->crash_shutdown)
 		return IRQ_HANDLED;
 
-	pr_err("Fatal error on the modem.\n");
-	subsys_set_crash_status(drv->subsys, CRASH_STATUS_ERR_FATAL);
+	if (nmi_status & 0x04)
+		pr_err("%s: Fatal error on the modem due to TZ NMI\n",
+			__func__);
+	else
+		pr_err("%s: Fatal error on the modem\n", __func__);
+	subsys_set_crash_status(drv->subsys, true);
 	restart_modem(drv);
 	return IRQ_HANDLED;
 }
@@ -194,7 +200,7 @@ static irqreturn_t modem_wdog_bite_intr_handler(int irq, void *dev_id)
 			!gpio_get_value(drv->subsys_desc.err_fatal_gpio))
 		panic("%s: System ramdump requested. Triggering device restart!\n",
 							__func__);
-	subsys_set_crash_status(drv->subsys, CRASH_STATUS_WDOG_BITE);
+	subsys_set_crash_status(drv->subsys, true);
 	restart_modem(drv);
 	return IRQ_HANDLED;
 }
@@ -222,6 +228,7 @@ static int pil_subsys_init(struct modem_data *drv,
 		goto err_subsys;
 	}
 
+	drv->q6->desc.subsys_dev = drv->subsys;
 	drv->ramdump_dev = create_ramdump_device("modem", &pdev->dev);
 	if (!drv->ramdump_dev) {
 		pr_err("%s: Unable to create a modem ramdump device.\n",
@@ -276,12 +283,8 @@ static int pil_mss_loadable_init(struct modem_data *drv,
 	if (q6->cx_ipeak_vote) {
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						    "cxip_lm_vote_clear");
-		if (!res) {
-			dev_err(&pdev->dev, "Failed to get resource for ipeak reg\n");
-			return -EINVAL;
-		}
-		q6->cxip_lm_vote_clear = devm_ioremap(&pdev->dev,
-						res->start, resource_size(res));
+		q6->cxip_lm_vote_clear = devm_ioremap_resource(&pdev->dev,
+								res);
 		if (!q6->cxip_lm_vote_clear)
 			return -ENOMEM;
 	}
@@ -317,7 +320,7 @@ static int pil_mss_loadable_init(struct modem_data *drv,
 			dev_err(&pdev->dev, "Failed to set vreg voltage(rc:%d)\n",
 									ret);
 
-		ret = regulator_set_load(q6->vreg, 100000);
+		ret = regulator_set_optimum_mode(q6->vreg, 100000);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Failed to set vreg mode(rc:%d)\n",
 									ret);
@@ -430,7 +433,7 @@ static int pil_mba_mem_driver_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id mba_mem_match_table[] = {
+static struct of_device_id mba_mem_match_table[] = {
 	{ .compatible = "qcom,pil-mba-mem" },
 	{}
 };
