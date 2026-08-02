@@ -345,8 +345,7 @@ static int bg_shutdown(const struct subsys_desc *subsys, bool force_stop)
  * Return: 0 on success. Error code on failure.
  */
 static int bg_auth_metadata(struct pil_desc *pil,
-	const u8 *metadata, size_t size,
-	phys_addr_t addr, size_t sz)
+	const u8 *metadata, size_t size)
 {
 	struct pil_bg_data *bg_data = desc_to_data(pil);
 	struct tzapp_bg_req bg_tz_req;
