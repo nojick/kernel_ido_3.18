@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2012-2014, 2016,
- * 2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014, 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -90,9 +89,10 @@ static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 	}
 	if (!strcmp(img_name, "modem")) {
 		/* adsp_state always returns "0". So load modem image based on
-		apr_modem_state to prevent loading of image twice */
+		 * apr_modem_state to prevent loading of image twice
+		 */
 		adsp_state = apr_get_modem_state();
-		if (adsp_state != APR_SUBSYS_LOADED) {
+		if (adsp_state == APR_SUBSYS_DOWN) {
 			priv = platform_get_drvdata(pdev);
 			if (!priv) {
 				dev_err(&pdev->dev,
@@ -147,12 +147,10 @@ load_adsp:
 	}
 fail:
 	dev_err(&pdev->dev, "%s: Q6 image loading failed\n", __func__);
-	return;
 }
 
 static void adsp_loader_do(struct platform_device *pdev)
 {
-	dev_info(&pdev->dev, "%s: scheduling work to load ADSP fw\n", __func__);
 	schedule_work(&adsp_ldr_work);
 }
 
@@ -162,7 +160,11 @@ static ssize_t adsp_boot_store(struct kobject *kobj,
 	size_t count)
 {
 	int boot = 0;
-	sscanf(buf, "%du", &boot);
+
+	if (sscanf(buf, "%du", &boot) != 1) {
+		pr_err("%s: failed to read boot info from string\n", __func__);
+		return -EINVAL;
+	}
 
 	if (boot == BOOT_CMD) {
 		pr_debug("%s: going to call adsp_loader_do\n", __func__);
@@ -194,11 +196,10 @@ static int adsp_loader_init_sysfs(struct platform_device *pdev)
 {
 	int ret = -EINVAL;
 	struct adsp_loader_private *priv = NULL;
-	adsp_private = NULL;
 
+	adsp_private = NULL;
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
-		dev_err(&pdev->dev, "%s: memory alloc failed\n", __func__);
 		ret = -ENOMEM;
 		return ret;
 	}
@@ -211,8 +212,6 @@ static int adsp_loader_init_sysfs(struct platform_device *pdev)
 				sizeof(*(priv->attr_group)),
 				GFP_KERNEL);
 	if (!priv->attr_group) {
-		dev_err(&pdev->dev, "%s: malloc attr_group failed\n",
-						__func__);
 		ret = -ENOMEM;
 		goto error_return;
 	}
@@ -274,6 +273,7 @@ static int adsp_loader_remove(struct platform_device *pdev)
 static int adsp_loader_probe(struct platform_device *pdev)
 {
 	int ret = adsp_loader_init_sysfs(pdev);
+
 	if (ret != 0) {
 		dev_err(&pdev->dev, "%s: Error in initing sysfs\n", __func__);
 		return ret;

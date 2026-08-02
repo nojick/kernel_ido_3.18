@@ -43,7 +43,6 @@
 
 #define ERR_READY	0
 #define PBL_DONE	1
-#define NMI_STATUS_REGISTER	0x44
 
 #define desc_to_data(d) container_of(d, struct pil_tz_data, desc)
 #define subsys_to_data(d) container_of(d, struct pil_tz_data, subsys_desc)
@@ -111,7 +110,6 @@ struct pil_tz_data {
 	void __iomem *irq_mask;
 	void __iomem *err_status;
 	void __iomem *err_status_spare;
-	void __iomem *reg_base;
 	u32 bits_arr[2];
 };
 
@@ -434,7 +432,7 @@ static int enable_regulators(struct pil_tz_data *d, struct device *dev,
 		}
 
 		if (regs[i].uA > 0) {
-			rc = regulator_set_optimum_mode(regs[i].reg,
+			rc = regulator_set_load(regs[i].reg,
 						regs[i].uA);
 			if (rc < 0) {
 				dev_err(dev, "Failed to set regulator mode(rc:%d)\n",
@@ -457,7 +455,7 @@ static int enable_regulators(struct pil_tz_data *d, struct device *dev,
 err_enable:
 	if (regs[i].uA > 0) {
 		regulator_set_voltage(regs[i].reg, 0, INT_MAX);
-		regulator_set_optimum_mode(regs[i].reg, 0);
+		regulator_set_load(regs[i].reg, 0);
 	}
 err_mode:
 	if (regs[i].uV > 0)
@@ -468,7 +466,7 @@ err_voltage:
 			regulator_set_voltage(regs[i].reg, 0, INT_MAX);
 
 		if (regs[i].uA > 0)
-			regulator_set_optimum_mode(regs[i].reg, 0);
+			regulator_set_load(regs[i].reg, 0);
 
 		if (d->keep_proxy_regs_on && reg_no_enable)
 			continue;
@@ -488,7 +486,7 @@ static void disable_regulators(struct pil_tz_data *d, struct reg_info *regs,
 			regulator_set_voltage(regs[i].reg, 0, INT_MAX);
 
 		if (regs[i].uA > 0)
-			regulator_set_optimum_mode(regs[i].reg, 0);
+			regulator_set_load(regs[i].reg, 0);
 
 		if (d->keep_proxy_regs_on && reg_no_disable)
 			continue;
@@ -521,8 +519,7 @@ err:
 static void disable_unprepare_clocks(struct clk **clks, int clk_count)
 {
 	int i;
-
-	for (i = 0; i < clk_count; i++)
+	for (i = --clk_count; i >= 0; i--)
 		clk_disable_unprepare(clks[i]);
 }
 
@@ -583,8 +580,7 @@ static void pil_remove_proxy_vote(struct pil_desc *pil)
 }
 
 static int pil_init_image_trusted(struct pil_desc *pil,
-		const u8 *metadata, size_t size,
-		 phys_addr_t addr, size_t sz)
+		const u8 *metadata, size_t size)
 {
 	struct pil_tz_data *d = desc_to_data(pil);
 	struct pas_init_image_req {
@@ -878,25 +874,14 @@ static void subsys_crash_shutdown(const struct subsys_desc *subsys)
 static irqreturn_t subsys_err_fatal_intr_handler (int irq, void *dev_id)
 {
 	struct pil_tz_data *d = subsys_to_data(dev_id);
-	u32 nmi_status = 0;
 
-	if (d->reg_base)
-		nmi_status = readl_relaxed(d->reg_base +
-					   NMI_STATUS_REGISTER);
-
-	if (nmi_status & 0x04)
-		pr_err("%s: Fatal error on the %s due to TZ NMI\n",
-			__func__, d->subsys_desc.name);
-	else
-		pr_err("%s Fatal error on the %s\n",
-			__func__, d->subsys_desc.name);
-
+	pr_err("Fatal error on %s!\n", d->subsys_desc.name);
 	if (subsys_get_crash_status(d->subsys)) {
 		pr_err("%s: Ignoring error fatal, restart in progress\n",
 							d->subsys_desc.name);
 		return IRQ_HANDLED;
 	}
-	subsys_set_crash_status(d->subsys, true);
+	subsys_set_crash_status(d->subsys, CRASH_STATUS_ERR_FATAL);
 	log_failure_reason(d);
 	subsystem_restart_dev(d->subsys);
 
@@ -915,7 +900,7 @@ static irqreturn_t subsys_wdog_bite_irq_handler(int irq, void *dev_id)
 			!gpio_get_value(d->subsys_desc.err_fatal_gpio))
 		panic("%s: System ramdump requested. Triggering device restart!\n",
 							__func__);
-	subsys_set_crash_status(d->subsys, true);
+	subsys_set_crash_status(d->subsys, CRASH_STATUS_WDOG_BITE);
 	log_failure_reason(d);
 	subsystem_restart_dev(d->subsys);
 
@@ -931,31 +916,48 @@ static irqreturn_t subsys_stop_ack_intr_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void check_pbl_done(struct pil_tz_data *d)
+static void clear_pbl_done(struct pil_tz_data *d)
 {
 	uint32_t err_value;
 
 	err_value =  __raw_readl(d->err_status);
 	pr_debug("PBL_DONE received from %s!\n", d->subsys_desc.name);
-	if (err_value)
+	if (err_value) {
+		uint32_t rmb_err_spare0;
+		uint32_t rmb_err_spare1;
+		uint32_t rmb_err_spare2;
+
+		rmb_err_spare2 =  __raw_readl(d->err_status_spare);
+		rmb_err_spare1 =  __raw_readl(d->err_status_spare-4);
+		rmb_err_spare0 =  __raw_readl(d->err_status_spare-8);
+
 		pr_err("PBL error status register: 0x%08x\n", err_value);
+
+		pr_err("PBL error status spare0 register: 0x%08x\n",
+			rmb_err_spare0);
+		pr_err("PBL error status spare1 register: 0x%08x\n",
+			rmb_err_spare1);
+		pr_err("PBL error status spare2 register: 0x%08x\n",
+			rmb_err_spare2);
+	}
 	__raw_writel(BIT(d->bits_arr[PBL_DONE]), d->irq_clear);
 }
 
-static void check_err_ready(struct pil_tz_data *d)
+static void clear_err_ready(struct pil_tz_data *d)
 {
-	uint32_t err_value;
-
-	err_value =  __raw_readl(d->err_status_spare);
-	if (!err_value) {
-		pr_debug("Subsystem error services up received from %s!\n",
+	pr_debug("Subsystem error services up received from %s!\n",
 							d->subsys_desc.name);
-		__raw_writel(BIT(d->bits_arr[ERR_READY]), d->irq_clear);
-		complete_err_ready(d->subsys);
-	} else if (err_value == 0x44554d50) {
+	__raw_writel(BIT(d->bits_arr[ERR_READY]), d->irq_clear);
+	complete_err_ready(d->subsys);
+}
+
+static void clear_wdog(struct pil_tz_data *d)
+{
+	/* Check crash status to know if device is restarting*/
+	if (!subsys_get_crash_status(d->subsys)) {
 		pr_err("wdog bite received from %s!\n", d->subsys_desc.name);
 		__raw_writel(BIT(d->bits_arr[ERR_READY]), d->irq_clear);
-		subsys_set_crash_status(d->subsys, true);
+		subsys_set_crash_status(d->subsys, CRASH_STATUS_WDOG_BITE);
 		log_failure_reason(d);
 		subsystem_restart_dev(d->subsys);
 	}
@@ -964,17 +966,21 @@ static void check_err_ready(struct pil_tz_data *d)
 static irqreturn_t subsys_generic_handler(int irq, void *dev_id)
 {
 	struct pil_tz_data *d = subsys_to_data(dev_id);
-	uint32_t status_val;
+	uint32_t status_val, err_value;
 
-	if (subsys_get_crash_status(d->subsys))
-		return IRQ_HANDLED;
-
+	err_value =  __raw_readl(d->err_status_spare);
 	status_val = __raw_readl(d->irq_status);
 
-	if (status_val & BIT(d->bits_arr[ERR_READY]))
-		check_err_ready(d);
-	else if (status_val & BIT(d->bits_arr[PBL_DONE]))
-		check_pbl_done(d);
+	if ((status_val & BIT(d->bits_arr[ERR_READY])) && !err_value)
+		clear_err_ready(d);
+
+	if ((status_val & BIT(d->bits_arr[ERR_READY])) &&
+					err_value == 0x44554d50)
+		clear_wdog(d);
+
+	if (status_val & BIT(d->bits_arr[PBL_DONE]))
+		clear_pbl_done(d);
+
 	return IRQ_HANDLED;
 }
 
@@ -1004,13 +1010,6 @@ static int pil_tz_driver_probe(struct platform_device *pdev)
 
 	d->keep_proxy_regs_on = of_property_read_bool(pdev->dev.of_node,
 						"qcom,keep-proxy-regs-on");
-
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "base_reg");
-	d->reg_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(d->reg_base)) {
-		dev_err(&pdev->dev, "Failed to iomap base register\n");
-		d->reg_base = NULL;
-	}
 
 	rc = of_property_read_string(pdev->dev.of_node, "qcom,firmware-name",
 				      &d->desc.name);
@@ -1045,7 +1044,7 @@ static int pil_tz_driver_probe(struct platform_device *pdev)
 	if (!d->subsys_desc.no_auth) {
 		rc = piltz_resc_init(pdev, d);
 		if (rc)
-			return -ENOENT;
+			return rc;
 
 		rc = of_property_read_u32(pdev->dev.of_node, "qcom,pas-id",
 								&d->pas_id);
@@ -1077,55 +1076,23 @@ static int pil_tz_driver_probe(struct platform_device *pdev)
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"sp2soc_irq_status");
 		d->irq_status = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(d->irq_status)) {
-			dev_err(&pdev->dev, "Invalid resource for sp2soc_irq_status\n");
-			rc = PTR_ERR(d->irq_status);
-			goto err_ramdump;
-		}
-
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"sp2soc_irq_clr");
 		d->irq_clear = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(d->irq_clear)) {
-			dev_err(&pdev->dev, "Invalid resource for sp2soc_irq_clr\n");
-			rc = PTR_ERR(d->irq_clear);
-			goto err_ramdump;
-		}
-
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"sp2soc_irq_mask");
 		d->irq_mask = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(d->irq_mask)) {
-			dev_err(&pdev->dev, "Invalid resource for sp2soc_irq_mask\n");
-			rc = PTR_ERR(d->irq_mask);
-			goto err_ramdump;
-		}
-
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"rmb_err");
 		d->err_status = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(d->err_status)) {
-			dev_err(&pdev->dev, "Invalid resource for rmb_err\n");
-			rc = PTR_ERR(d->err_status);
-			goto err_ramdump;
-		}
-
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"rmb_err_spare2");
 		d->err_status_spare = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(d->err_status_spare)) {
-			dev_err(&pdev->dev, "Invalid resource for rmb_err_spare2\n");
-			rc = PTR_ERR(d->err_status_spare);
-			goto err_ramdump;
-		}
-
 		rc = of_property_read_u32_array(pdev->dev.of_node,
 		       "qcom,spss-scsr-bits", d->bits_arr, sizeof(d->bits_arr)/
 							sizeof(d->bits_arr[0]));
-		if (rc) {
+		if (rc)
 			dev_err(&pdev->dev, "Failed to read qcom,spss-scsr-bits");
-			goto err_ramdump;
-		}
 		mask_scsr_irqs(d);
 
 	} else {
@@ -1146,14 +1113,12 @@ static int pil_tz_driver_probe(struct platform_device *pdev)
 		rc = PTR_ERR(d->subsys);
 		goto err_subsys;
 	}
-	d->desc.subsys_dev = d->subsys;
 
 	return 0;
 err_subsys:
 	destroy_ramdump_device(d->ramdump_dev);
 err_ramdump:
 	pil_desc_release(&d->desc);
-	platform_set_drvdata(pdev, NULL);
 
 	return rc;
 }
