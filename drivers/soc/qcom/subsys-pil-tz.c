@@ -1113,7 +1113,6 @@ static int pil_tz_driver_probe(struct platform_device *pdev)
 		rc = PTR_ERR(d->subsys);
 		goto err_subsys;
 	}
-	d->desc.subsys_dev = d->subsys;
 
 	return 0;
 err_subsys:
