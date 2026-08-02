@@ -79,7 +79,7 @@
 /* CX_IPEAK Parameters */
 #define CX_IPEAK_MSS			BIT(5)
 /* Timeout value for MBA boot when minidump is enabled */
-#define MBA_ENCRYPTION_TIMEOUT	5000
+#define MBA_ENCRYPTION_TIMEOUT	3000
 enum scm_cmd {
 	PAS_MEM_SETUP_CMD = 2,
 };
