@@ -68,6 +68,11 @@
 
 #define AW8155A_MODE 5
 
+extern int tasha_cdc_mclk_enable(struct snd_soc_codec *codec, int enable,
+				 bool dapm);
+extern int tasha_mbhc_hs_detect(struct snd_soc_codec *codec,
+				struct wcd_mbhc_config *mbhc_cfg);
+
 static struct delayed_work lineout_amp_enable;
 static struct delayed_work lineout_amp_dualmode;
 static struct delayed_work lineout_amp_disable;
@@ -284,22 +289,14 @@ static struct afe_clk_set mi2s_rx_clk = {
 	0,
 };
 
-struct cdc_pdm_pinctrl_info {
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *cdc_lines_sus;
-	struct pinctrl_state *cdc_lines_act;
-	struct pinctrl_state *cross_conn_det_sus;
-	struct pinctrl_state *cross_conn_det_act;
-};
 
-struct ext_cdc_tlmm_pinctrl_info {
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *tlmm_sus;
-	struct pinctrl_state *tlmm_act;
+struct cdc_pdm_pinctrl_info {
+    struct pinctrl *pinctrl;
+    struct pinctrl_state *cdc_lines_sus;
+    struct pinctrl_state *cdc_lines_act;
 };
 
 static struct cdc_pdm_pinctrl_info pinctrl_info;
-struct ext_cdc_tlmm_pinctrl_info ext_cdc_pinctrl_info;
 
 static int mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S16_LE;
 static int mi2s_rx_sample_rate = SAMPLING_RATE_48KHZ;
@@ -421,7 +418,7 @@ static int msm8x16_get_port_id(int be_id)
 
 static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 {
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_card *card = codec->component.card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret = 0;
 
@@ -1307,14 +1304,15 @@ static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
 	struct msm8916_asoc_mach_data *pdata = NULL;
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	int ret = 0;
 
-	pdata = snd_soc_card_get_drvdata(w->codec->card);
+	pdata = snd_soc_card_get_drvdata(codec->component.card);
 	pr_debug("%s: event = %d\n", __func__, event);
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (pdata->codec_type)
-			msm8x16_enable_extcodec_ext_clk(w->codec, 1, true);
+			msm8x16_enable_extcodec_ext_clk(codec, 1, true);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		pr_debug("%s: mclk_res_ref = %d\n",
@@ -1323,7 +1321,7 @@ static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
 			if (atomic_read(&pdata->mclk_rsc_ref) == 0) {
 				pr_debug("%s: disabling MCLK\n", __func__);
 				/* disable the codec mclk config*/
-				msm8x16_wcd_mclk_enable(w->codec, 0, true);
+				msm8x16_wcd_mclk_enable(codec, 0, true);
 				msm8x16_enable_codec_ext_clk(w->codec, 0, true);
 				ret = pinctrl_select_state(pinctrl_info.pinctrl,
 						pinctrl_info.cdc_lines_sus);
@@ -1332,7 +1330,7 @@ static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
 							__func__);
 			}
 		} else {
-			 msm8x16_enable_extcodec_ext_clk(w->codec, 0, true);
+			 msm8x16_enable_extcodec_ext_clk(codec, 0, true);
 		}
 		break;
 	default:
@@ -1891,66 +1889,6 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	return msm8x16_wcd_hs_detect(codec, &mbhc_cfg);
 }
 
-static int msm_audrx_init_wcd(struct snd_soc_pcm_runtime *rtd)
-{
-
-	struct snd_soc_codec *codec = rtd->codec;
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_card *card;
-	struct snd_info_entry *entry;
-	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(rtd->card);
-	int ret = 0;
-
-	pr_debug("%s: dev_name%s\n", __func__, dev_name(cpu_dai->dev));
-
-	snd_soc_add_codec_controls(codec, msm_snd_controls,
-				ARRAY_SIZE(msm_snd_controls));
-
-	snd_soc_dapm_new_controls(dapm, msm8x16_dapm_widgets,
-				ARRAY_SIZE(msm8x16_dapm_widgets));
-
-	snd_soc_dapm_add_routes(dapm, wcd9335_audio_paths,
-				ARRAY_SIZE(wcd9335_audio_paths));
-
-	snd_soc_dapm_ignore_suspend(dapm, "Headset Mic");
-	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic0");
-	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic1");
-	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic2");
-	snd_soc_dapm_ignore_suspend(dapm, "Digital Mic3");
-
-	snd_soc_dapm_ignore_suspend(dapm, "AMIC2");
-	snd_soc_dapm_ignore_suspend(dapm, "DMIC0");
-	snd_soc_dapm_ignore_suspend(dapm, "DMIC1");
-	snd_soc_dapm_ignore_suspend(dapm, "DMIC2");
-	snd_soc_dapm_ignore_suspend(dapm, "DMIC3");
-	snd_soc_dapm_ignore_suspend(dapm, "SPK1 OUT");
-	snd_soc_dapm_ignore_suspend(dapm, "SPK2 OUT");
-	snd_soc_dapm_sync(dapm);
-
-	/* start mbhc */
-	wcd_mbhc_cfg.calibration = def_tasha_mbhc_cal();
-	if (wcd_mbhc_cfg.calibration)
-		ret = tasha_mbhc_hs_detect(codec, &wcd_mbhc_cfg);
-	else
-		ret = -ENOMEM;
-
-	card = rtd->card->snd_card;
-	entry = snd_register_module_info(card->module,
-						"codecs",
-						card->proc_root);
-	if (!entry) {
-		pr_debug("%s: Cannot create codecs module entry\n",
-			__func__);
-		return 0;
-	}
-	pdata->codec_root = entry;
-	tasha_codec_info_create_codec_entry(pdata->codec_root,
-							codec);
-
-	return ret;
-}
-
 static struct snd_soc_ops msm8x16_quat_mi2s_be_ops = {
 	.startup = msm_quat_mi2s_snd_startup,
 	.hw_params = msm_mi2s_snd_hw_params,
@@ -2003,20 +1941,6 @@ static struct snd_soc_dai_link msm8x16_9326_dai[] = {
 		.ops = &msm8x16_quat_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
-	{
-		.name = LPASS_BE_PRI_MI2S_RX,
-		.stream_name = "Primary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.0",
-		.platform_name = "msm-pcm-routing",
-		.codec_name     = "tasha_codec",
-		.codec_dai_name = "tasha_i2s_rx1",
-		.no_pcm = 1,
-		.be_id = MSM_BACKEND_DAI_PRI_MI2S_RX,
-		.init = &msm_audrx_init_wcd,
-		.be_hw_params_fixup = msm_pri_rx_be_hw_params_fixup,
-		.ops = &msm8x16_mi2s_be_ops,
-		.ignore_suspend = 1,
-	},
 	{ /* FrontEnd DAI Link, CPE Service */
 		.name = "CPE Listen service",
 		.stream_name = "CPE Listen Audio Service",
@@ -2041,30 +1965,6 @@ static struct snd_soc_dai_link msm8x16_9326_dai[] = {
 		.be_id = MSM_BACKEND_DAI_AFE_LOOPBACK_TX,
 		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
-	},
-};
-
-static struct snd_soc_aux_dev msm8909_aux_dev[] = {
-	{
-		.name = "wsa881x.0",
-		.codec_name =  NULL,
-		.init = msm8909_wsa881x_init,
-	},
-	{
-		.name = "wsa881x.1",
-		.codec_name = NULL,
-		.init = msm8909_wsa881x_init,
-	},
-};
-
-static struct snd_soc_codec_conf msm8909_codec_conf[] = {
-	{
-		.dev_name = NULL,
-		.name_prefix = NULL,
-	},
-	{
-		.dev_name = NULL,
-		.name_prefix = NULL,
 	},
 };
 
@@ -2095,20 +1995,6 @@ static struct snd_soc_dai_link msm8x16_wcd_dai[] = {
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ops = &msm8x16_quat_mi2s_be_ops,
-		.ignore_suspend = 1,
-	},
-	{
-		.name = LPASS_BE_PRI_MI2S_RX,
-		.stream_name = "Primary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.0",
-		.platform_name = "msm-pcm-routing",
-		.codec_name     = "tombak_codec",
-		.codec_dai_name = "msm8x16_wcd_i2s_rx1",
-		.no_pcm = 1,
-		.be_id = MSM_BACKEND_DAI_PRI_MI2S_RX,
-		.init = &msm_audrx_init,
-		.be_hw_params_fixup = msm_pri_rx_be_hw_params_fixup,
-		.ops = &msm8x16_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
 	{
@@ -2616,6 +2502,20 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		 /* this dai link has playback support */
 		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA19,
 	},
+	{
+		.name = LPASS_BE_PRI_MI2S_RX,
+		.stream_name = "Primary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.0",
+		.platform_name = "msm-pcm-routing",
+		.codec_name     = "tombak_codec",
+		.codec_dai_name = "msm8x16_wcd_i2s_rx1",
+		.no_pcm = 1,
+		.be_id = MSM_BACKEND_DAI_PRI_MI2S_RX,
+		.init = &msm_audrx_init,
+		.be_hw_params_fixup = msm_pri_rx_be_hw_params_fixup,
+		.ops = &msm8x16_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
 	/* Primary AUX PCM Backend DAI Links */
 	{
 		.name = LPASS_BE_AUXPCM_RX,
@@ -2857,28 +2757,13 @@ void disable_mclk(struct work_struct *work)
 
 static bool msm8x16_swap_gnd_mic(struct snd_soc_codec *codec)
 {
-	struct snd_soc_card *card = codec->card;
+	struct snd_soc_card *card = codec->component.card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int value, ret;
 
 	if (!gpio_is_valid(pdata->us_euro_gpio)) {
 		pr_err("%s: Invalid gpio: %d", __func__, pdata->us_euro_gpio);
 		return false;
-	}
-	value = gpio_get_value_cansleep(pdata->us_euro_gpio);
-	ret = pinctrl_select_state(pinctrl_info.pinctrl,
-				pinctrl_info.cross_conn_det_act);
-	if (ret < 0) {
-		pr_err("failed to configure the gpio\n");
-		return ret;
-	}
-	gpio_set_value_cansleep(pdata->us_euro_gpio, !value);
-	pr_debug("%s: swap select switch %d to %d\n", __func__, value, !value);
-	ret = pinctrl_select_state(pinctrl_info.pinctrl,
-				pinctrl_info.cross_conn_det_sus);
-	if (ret < 0) {
-		pr_err("failed to configure the gpio\n");
-		return ret;
 	}
 
 	return true;
@@ -2906,22 +2791,6 @@ static int msm8x16_setup_hs_jack(struct platform_device *pdev,
 		pinctrl = devm_pinctrl_get(&pdev->dev);
 		if (IS_ERR(pinctrl)) {
 			pr_err("%s: Unable to get pinctrl handle\n", __func__);
-			return -EINVAL;
-		}
-		pinctrl_info.pinctrl = pinctrl;
-		/* get pinctrl handle for cross det pin*/
-		pinctrl_info.cross_conn_det_sus = pinctrl_lookup_state(pinctrl,
-							"cross_conn_det_sus");
-		if (IS_ERR(pinctrl_info.cross_conn_det_sus)) {
-			pr_err("%s: Unable to get pinctrl disable handle\n",
-								  __func__);
-			return -EINVAL;
-		}
-		pinctrl_info.cross_conn_det_act = pinctrl_lookup_state(pinctrl,
-							"cross_conn_det_act");
-		if (IS_ERR(pinctrl_info.cross_conn_det_act)) {
-			pr_err("%s: Unable to get pinctrl active handle\n",
-								 __func__);
 			return -EINVAL;
 		}
 	}
@@ -3020,20 +2889,11 @@ int populate_ext_snd_card_dt_data(struct platform_device *pdev)
 }
 
 static struct snd_soc_card *populate_ext_snd_card_dailinks(
-					struct platform_device *pdev)
+		struct platform_device *pdev)
 {
-	struct snd_soc_dai_link *msm8909_dai_links = NULL;
+	struct snd_soc_dai_link *dai_links = NULL;
 	struct snd_soc_card *card;
-	const char *wsa = "qcom,aux-codec";
-	const char *wsa_prefix = "qcom,aux-codec-prefix";
-	int num_strings;
-	char *temp_str = NULL;
-	const char *wsa_str = NULL;
-	const char *wsa_prefix_str = NULL;
-	u32 *index = NULL;
-	u32 max_aux_dev = 0;
-	int found = 0;
-	int num_links, i, ret;
+	int num_links;
 
 	if (pdev->id == 1) {
 		pr_debug("%s: CARD is 9326\n", __func__);
@@ -3042,89 +2902,11 @@ static struct snd_soc_card *populate_ext_snd_card_dailinks(
 		num_links = ARRAY_SIZE(msm8x16_9326_dai_links);
 
 		memcpy(msm8x16_9326_dai_links, msm8x16_dai,
-				sizeof(msm8x16_dai));
+			sizeof(msm8x16_dai));
 		memcpy(msm8x16_9326_dai_links + ARRAY_SIZE(msm8x16_dai),
 			msm8x16_9326_dai, sizeof(msm8x16_9326_dai));
 
-		msm8909_dai_links = msm8x16_9326_dai_links;
-
-		ret = of_property_read_u32(pdev->dev.of_node,
-			"qcom,max-aux-codec", &max_aux_dev);
-		if (ret) {
-			pr_err("%s: max-aux-codec property missing %s\n"
-					"ret = %d\n", __func__,
-					pdev->dev.of_node->full_name, ret);
-			goto ret_card;
-		}
-		if (max_aux_dev == 0) {
-			pr_err("%s: No aux codec defined for this target.\n",
-				__func__);
-			goto ret_card;
-		}
-		index = devm_kzalloc(&pdev->dev, (sizeof(u32) * max_aux_dev),
-				GFP_KERNEL);
-		if (!index)
-			return NULL;
-
-		num_strings = of_property_count_strings(pdev->dev.of_node,
-						wsa);
-		for (i = 0; i < num_strings; i++) {
-			ret = of_property_read_string_index(
-					pdev->dev.of_node, wsa,
-					i, &wsa_str);
-			if (ret) {
-				pr_err("%s:of read string %s i %d error %d\n",
-						__func__, wsa, i, ret);
-				goto err;
-			}
-			if (soc_check_aux_dev_byname(card, wsa_str) == 0) {
-				if (found >= max_aux_dev) {
-					pr_err("%s: found  %d components\n"
-						"total %d\n", __func__,
-							found, max_aux_dev);
-					goto err;
-				}
-				index[found] = i;
-
-				temp_str = NULL;
-				temp_str = kstrdup(wsa_str, GFP_KERNEL);
-				if (!temp_str)
-					goto err;
-				msm8909_aux_dev[found].codec_name = temp_str;
-
-				temp_str = NULL;
-				temp_str = kstrdup(wsa_str, GFP_KERNEL);
-				if (!temp_str)
-					goto err;
-				msm8909_codec_conf[found].dev_name = temp_str;
-				temp_str = NULL;
-				found++;
-			}
-		}
-		if (found < max_aux_dev) {
-			pr_err("%s: failed to find %d components.\n"
-				"Found only %d\n", __func__,
-					max_aux_dev, found);
-			goto err;
-		}
-
-		for (i = 0; i < max_aux_dev; i++) {
-			ret = of_property_read_string_index(
-					pdev->dev.of_node, wsa_prefix,
-					index[i], &wsa_prefix_str);
-			if (ret) {
-				pr_err("%s:of read string %s i %d error %d\n",
-					__func__, wsa_prefix, i, ret);
-				goto err;
-			}
-
-			temp_str = kstrdup(wsa_prefix_str, GFP_KERNEL);
-			if (!temp_str)
-				goto err;
-			msm8909_codec_conf[i].name_prefix = temp_str;
-
-			temp_str = NULL;
-		}
+		dai_links = msm8x16_9326_dai_links;
 	} else {
 		pr_debug("%s: CARD is 8x16 wcd internal card\n", __func__);
 		card = &bear_cards[pdev->id];
@@ -3134,26 +2916,19 @@ static struct snd_soc_card *populate_ext_snd_card_dailinks(
 		memcpy(msm8x16_wcd_dai_links + ARRAY_SIZE(msm8x16_dai),
 			msm8x16_wcd_dai, sizeof(msm8x16_wcd_dai));
 
-		msm8909_dai_links = msm8x16_wcd_dai_links;
+		dai_links = msm8x16_wcd_dai_links;
 	}
-	card->aux_dev = msm8909_aux_dev;
-	card->codec_conf = msm8909_codec_conf;
-ret_card:
-	card->num_configs = max_aux_dev;
-	card->num_aux_devs = max_aux_dev;
-	card->dai_link = msm8909_dai_links;
+
+	card->dai_link = dai_links;
 	card->num_links = num_links;
 	card->dev = &pdev->dev;
+
+	/*
+	 * Поля aux_dev, codec_conf, num_configs удалены, т.к. логика
+	 * с aux-кодеками (msm8909_aux_dev / msm8909_codec_conf) убрана.
+	 */
+
 	return card;
-err:
-	if (max_aux_dev > 0) {
-		for (i = 0; i < max_aux_dev; i++) {
-			kfree(msm8909_aux_dev[i].codec_name);
-			kfree(msm8909_codec_conf[i].dev_name);
-			kfree(msm8909_codec_conf[i].name_prefix);
-		}
-	}
-	return NULL;
 }
 
 static int msm8x16_populate_dai_link_component_of_node(
@@ -3396,17 +3171,25 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 		pr_debug("%s: ext_pa = %d\n", __func__, pdata->ext_pa);
 		pinctrl = devm_pinctrl_get(&pdev->dev);
 		if (IS_ERR(pinctrl)) {
-			pr_err("%s: Unable to get pinctrl handle\n",
-					__func__);
+			pr_err("%s: Unable to get pinctrl handle\n", __func__);
 			return -EINVAL;
 		}
 		pinctrl_info.pinctrl = pinctrl;
+		pinctrl_info.cdc_lines_sus = pinctrl_lookup_state(pinctrl_info.pinctrl, "cdc_lines_sus");
+		if (IS_ERR(pinctrl_info.cdc_lines_sus)) {
+			pr_err("%s: Failed to lookup cdc_lines_sus state\n", __func__);
+			return PTR_ERR(pinctrl_info.cdc_lines_sus);
+		}
+		pinctrl_info.cdc_lines_act = pinctrl_lookup_state(pinctrl_info.pinctrl, "cdc_lines_act");
+			if (IS_ERR(pinctrl_info.cdc_lines_act)) {
+			pr_err("%s: Failed to lookup cdc_lines_act state\n", __func__);
+			return PTR_ERR(pinctrl_info.cdc_lines_act);
+		}
 		ret = get_cdc_gpio_lines(pinctrl, pdata->ext_pa);
 		if (ret < 0) {
-			pr_err("%s: failed to ger the codec gpio's %d\n",
-					__func__, ret);
-			goto err;
-		}
+			pr_err("%s: failed to get the codec gpio's %d\n", __func__, ret);
+		goto err;
+}
 	}
 
 	ret = of_property_read_string(pdev->dev.of_node,
@@ -3531,7 +3314,17 @@ static struct platform_driver msm8x16_asoc_machine_driver = {
 	.probe = msm8x16_asoc_machine_probe,
 	.remove = msm8x16_asoc_machine_remove,
 };
-module_platform_driver(msm8x16_asoc_machine_driver);
+static int __init msm8x16_machine_init(void)
+{
+	return platform_driver_register(&msm8x16_asoc_machine_driver);
+}
+late_initcall(msm8x16_machine_init);
+
+static void __exit msm8x16_machine_exit(void)
+{
+	return platform_driver_unregister(&msm8x16_asoc_machine_driver);
+}
+module_exit(msm8x16_machine_exit);
 
 MODULE_DESCRIPTION("ALSA SoC msm");
 MODULE_LICENSE("GPL v2");
