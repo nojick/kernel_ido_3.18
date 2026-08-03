@@ -496,7 +496,7 @@
 			smb_int_default: smb_int_default {
 				mux {
 					pins = "gpio62";
-					function ="smb_int";
+					function ="gpio";
 				};
 				config {
 					pins = "gpio62";
@@ -508,7 +508,7 @@
 			smb_int_sleep: smb_int_sleep {
 				mux {
 					pins = "gpio62";
-					function ="smb_int";
+					function ="gpio";
 				};
 				config {
 					pins = "gpio62";
