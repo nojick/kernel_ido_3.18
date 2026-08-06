@@ -1293,7 +1293,6 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			msm_btsco_rate_get, msm_btsco_rate_put),
 	SOC_ENUM_EXT("Lineout_1 amp", msm_snd_enum[3],
 			lineout_status_get, lineout_status_put),
-		     msm_btsco_rate_get, msm_btsco_rate_put),
 	SOC_ENUM_EXT("RX SampleRate", msm_snd_enum[3],
 			pri_rx_sample_rate_get, pri_rx_sample_rate_put),
 	SOC_ENUM_EXT("MI2S TX SampleRate", msm_snd_enum[4],
@@ -1931,7 +1930,7 @@ static int msm_audrx_init_wcd(struct snd_soc_pcm_runtime *rtd)
 		ret = tasha_mbhc_hs_detect(codec, &wcd_mbhc_cfg);
 	else
 		ret = -ENOMEM;
-
+#if 0
 	card = rtd->card->snd_card;
 	entry = snd_register_module_info(card->module,
 						"codecs",
@@ -1944,7 +1943,7 @@ static int msm_audrx_init_wcd(struct snd_soc_pcm_runtime *rtd)
 	pdata->codec_root = entry;
 	tasha_codec_info_create_codec_entry(pdata->codec_root,
 							codec);
-
+#endif
 	return ret;
 }
 
@@ -2557,7 +2556,7 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.cpu_dai_name = "msm-dai-q6-dev.12289",
 		.platform_name = "msm-pcm-routing",
 		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name	= "msm-stub-tx",
+		.codec_dai_name = "msm-stub-tx",
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_INT_BT_SCO_TX,
 		.be_hw_params_fixup = msm_btsco_be_hw_params_fixup,
