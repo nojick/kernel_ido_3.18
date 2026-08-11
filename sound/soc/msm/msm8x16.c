@@ -511,6 +511,21 @@ static int msm_btsco_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+static int msm_bta2dp_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+					struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_RATE);
+
+	struct snd_interval *channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	rate->min = rate->max = 48000;
+	channels->min = channels->max = 2;
+
+	return 0;
+}
+
 static int msm_proxy_rx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
 {
@@ -1078,8 +1093,8 @@ static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, ter_mi2s_tx_ch_text),
 	SOC_ENUM_SINGLE_EXT(2, loopback_mclk_text),
 	SOC_ENUM_SINGLE_EXT(3, lineout_text),
-	SOC_ENUM_SINGLE_EXT(2, hs_amp_text)
-	SOC_ENUM_SINGLE_EXT(6, pri_rx_sample_rate_text),
+	SOC_ENUM_SINGLE_EXT(2, hs_amp_text),
+	SOC_ENUM_SINGLE_EXT(6, pri_rx_sample_rate_text)
 };
 
 static const char *const btsco_rate_text[] = {"8000", "16000"};
@@ -1562,6 +1577,8 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		pr_err("%s: set fmt cpu dai failed; ret=%d\n", __func__, ret);
 
+	pr_debug("%s() exit: substream = %s  stream = %d\n", __func__,
+		 substream->name, substream->stream);
 	return ret;
 }
 
@@ -2294,6 +2311,51 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.codec_name = "snd-soc-dummy",
 		.be_id = MSM_FRONTEND_DAI_VOICEMMODE2,
 	},
+        {/* hw:x,29 */
+		.name = "MSM8X16 Compress1",
+		.stream_name = "Compress1",
+		.cpu_dai_name	= "MultiMedia17",
+		.platform_name  = "msm-compress-dsp",
+		.dynamic = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			 SND_SOC_DPCM_TRIGGER_POST},
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		 /* this dai link has playback support */
+		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA17,
+	},
+	{/* hw:x,30 */
+		.name = "MSM8X16 Compress2",
+		.stream_name = "Compress2",
+		.cpu_dai_name	= "MultiMedia18",
+		.platform_name  = "msm-compress-dsp",
+		.dynamic = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			 SND_SOC_DPCM_TRIGGER_POST},
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		 /* this dai link has playback support */
+		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA18,
+	},
+	{/* hw:x,31 */
+		.name = "MSM8X16 Compress3",
+		.stream_name = "Compress3",
+		.cpu_dai_name	= "MultiMedia19",
+		.platform_name  = "msm-compress-dsp",
+		.dynamic = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			 SND_SOC_DPCM_TRIGGER_POST},
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		 /* this dai link has playback support */
+		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA19,
+	},
 	/* Primary AUX PCM Backend DAI Links */
 	{
 		.name = LPASS_BE_AUXPCM_RX,
@@ -2328,7 +2390,7 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.cpu_dai_name = "msm-dai-q6-dev.12288",
 		.platform_name = "msm-pcm-routing",
 		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name	= "msm-stub-rx",
+		.codec_dai_name = "msm-stub-rx",
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_INT_BT_SCO_RX,
 		.be_hw_params_fixup = msm_btsco_be_hw_params_fixup,
@@ -2342,10 +2404,22 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.cpu_dai_name = "msm-dai-q6-dev.12289",
 		.platform_name = "msm-pcm-routing",
 		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name	= "msm-stub-tx",
+		.codec_dai_name = "msm-stub-tx",
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_INT_BT_SCO_TX,
 		.be_hw_params_fixup = msm_btsco_be_hw_params_fixup,
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_INT_BT_A2DP_RX,
+		.stream_name = "Internal BT-A2DP Playback",
+		.cpu_dai_name = "msm-dai-q6-dev.12290",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "msm-stub-codec.1",
+		.codec_dai_name = "msm-stub-rx",
+		.no_pcm = 1,
+		.be_id = MSM_BACKEND_DAI_INT_BT_A2DP_RX,
+		.be_hw_params_fixup = msm_bta2dp_be_hw_params_fixup,
 		.ignore_suspend = 1,
 	},
 	{
