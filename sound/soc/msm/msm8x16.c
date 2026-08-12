@@ -1798,122 +1798,36 @@ static struct snd_soc_ops msm_pri_auxpcm_be_ops = {
 	.shutdown = msm_prim_auxpcm_shutdown,
 };
 
-static struct snd_soc_dai_link msm8x16_9326_dai[] = {
-	/* Backend DAI Links */
-	{
-		.name = LPASS_BE_QUAT_MI2S_RX,
-		.stream_name = "Quaternary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "tasha_codec",
-		.codec_dai_name	= "tasha_i2s_rx1",
-		.no_pcm = 1,
-		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm8x16_quat_mi2s_be_ops,
-		.ignore_pmdown_time = 1, /* dai link has playback support */
-		.ignore_suspend = 1,
-	},
-	{
-		.name = LPASS_BE_QUAT_MI2S_TX,
-		.stream_name = "Quaternary MI2S Capture",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "tasha_codec",
-		.codec_dai_name	= "tasha_i2s_tx1",
-		.no_pcm = 1,
-		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
-		.be_hw_params_fixup = msm_tx_be_hw_params_fixup,
-		.ops = &msm8x16_quat_mi2s_be_ops,
-		.ignore_suspend = 1,
-	},
-	{
-		.name = LPASS_BE_PRI_MI2S_RX,
-		.stream_name = "Primary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.0",
-		.platform_name = "msm-pcm-routing",
-		.codec_name     = "tasha_codec",
-		.codec_dai_name = "tasha_i2s_rx1",
-		.no_pcm = 1,
-		.be_id = MSM_BACKEND_DAI_PRI_MI2S_RX,
-		.init = &msm_audrx_init_wcd,
-		.be_hw_params_fixup = msm_pri_rx_be_hw_params_fixup,
-		.ops = &msm8x16_mi2s_be_ops,
-		.ignore_suspend = 1,
-	},
-};
-
 static struct snd_soc_dai_link msm8x16_wcd_dai[] = {
 	/* Backend DAI Links */
 	{
 		.name = LPASS_BE_QUAT_MI2S_RX,
-		.stream_name = "Quaternary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.stream_name = "Quaternary Playback",
+		.cpu_dai_name = "msm-dai-q6-dev.3",
 		.platform_name = "msm-pcm-routing",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
+		.codec_name = "tapan_codec",
+		.codec_dai_name	= "tapan9302_rx1",
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.init = &msm_audrx_init_wcd,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm8x16_quat_mi2s_be_ops,
+		.ops = &msm8x16_mi2s_be_ops,
 		.ignore_pmdown_time = 1, /* dai link has playback support */
 		.ignore_suspend = 1,
 	},
 	{
 		.name = LPASS_BE_QUAT_MI2S_TX,
-		.stream_name = "Quaternary MI2S Capture",
-		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.stream_name = "Quaternary Capture",
+		.cpu_dai_name = "msm-dai-q6-dev.3",
 		.platform_name = "msm-pcm-routing",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
+		.codec_name = "tapan_codec",
+		.codec_dai_name	= "tapan9302_tx1",
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm8x16_quat_mi2s_be_ops,
-		.ignore_suspend = 1,
-	},
-	{
-		.name = LPASS_BE_PRI_MI2S_RX,
-		.stream_name = "Primary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.0",
-		.platform_name = "msm-pcm-routing",
-		.codec_name     = "tombak_codec",
-		.codec_dai_name = "msm8x16_wcd_i2s_rx1",
-		.no_pcm = 1,
-		.be_id = MSM_BACKEND_DAI_PRI_MI2S_RX,
-		.init = &msm_audrx_init,
-		.be_hw_params_fixup = msm_pri_rx_be_hw_params_fixup,
 		.ops = &msm8x16_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
-	{
-		.name = LPASS_BE_SEC_MI2S_RX,
-		.stream_name = "Secondary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.1",
-		.platform_name = "msm-pcm-routing",
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-rx",
-		.no_pcm = 1,
-		.be_id = MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
-		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm8x16_sec_mi2s_be_ops,
-		.ignore_suspend = 1,
-	},
-	{
-		.name = LPASS_BE_TERT_MI2S_TX,
-		.stream_name = "Tertiary MI2S Capture",
-		.cpu_dai_name = "msm-dai-q6-mi2s.2",
-		.platform_name = "msm-pcm-routing",
-		.codec_name	= "tombak_codec",
-		.codec_dai_name = "msm8x16_wcd_i2s_tx1",
-		.no_pcm = 1,
-		.async_ops = ASYNC_DPCM_SND_SOC_PREPARE,
-		.be_id = MSM_BACKEND_DAI_TERTIARY_MI2S_TX,
-		.be_hw_params_fixup = msm_tx_be_hw_params_fixup,
-		.ops = &msm8x16_mi2s_be_ops,
-		.ignore_suspend = 1,
-	},
-	/* Backend I2S DAI Links */
 };
 
 /* Digital audio interface glue - connects codec <---> CPU */
@@ -2312,6 +2226,78 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 	},
+	/* Backend I2S DAI Links */
+	{
+		.name = LPASS_BE_PRI_MI2S_RX,
+		.stream_name = "Primary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.0",
+		.platform_name = "msm-pcm-routing",
+		.codec_name     = "tombak_codec",
+		.codec_dai_name = "msm8x16_wcd_i2s_rx1",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.async_ops = ASYNC_DPCM_SND_SOC_PREPARE |
+			ASYNC_DPCM_SND_SOC_HW_PARAMS,
+		.be_id = MSM_BACKEND_DAI_PRI_MI2S_RX,
+		.init = &msm_audrx_init,
+		.be_hw_params_fixup = msm_pri_rx_be_hw_params_fixup,
+		.ops = &msm8x16_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_SEC_MI2S_RX,
+		.stream_name = "Secondary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.1",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "msm-stub-codec.1",
+		.codec_dai_name = "msm-stub-rx",
+		.no_pcm = 1,
+		.be_id = MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm8x16_sec_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_TERT_MI2S_TX,
+		.stream_name = "Tertiary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.2",
+		.platform_name = "msm-pcm-routing",
+		.codec_name     = "tombak_codec",
+		.codec_dai_name = "msm8x16_wcd_i2s_tx1",
+		.no_pcm = 1,
+		.async_ops = ASYNC_DPCM_SND_SOC_PREPARE,
+		.be_id = MSM_BACKEND_DAI_TERTIARY_MI2S_TX,
+		.be_hw_params_fixup = msm_tx_be_hw_params_fixup,
+		.ops = &msm8x16_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.no_pcm = 1,
+		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm8x16_quat_mi2s_be_ops,
+		.ignore_pmdown_time = 1, /* dai link has playback support */
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_QUAT_MI2S_TX,
+		.stream_name = "Quaternary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.no_pcm = 1,
+		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm8x16_quat_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
 	{/* hw:x,27 */
 		.name = "VoiceMMode1",
 		.stream_name = "VoiceMMode1",
@@ -2564,34 +2550,11 @@ static struct snd_soc_dai_link msm8x16_wcd_dai_links[
 				ARRAY_SIZE(msm8x16_wcd_dai)];
 
 
-static struct snd_soc_dai_link msm8x16_9326_dai_links[
-				ARRAY_SIZE(msm8x16_dai) +
-				ARRAY_SIZE(msm8x16_9326_dai)];
-
-struct snd_soc_card snd_soc_card_msm8916 = {
-	.name		= "msm8x16-snd-card",
-	.dai_link	= msm8x16_wcd_dai_links,
-	.num_links	= ARRAY_SIZE(msm8x16_wcd_dai_links),
-};
-
-struct snd_soc_card snd_soc_card_9326_msm8916 = {
-	.name		= "msm8x16-tasha9326-snd-card",
-	.dai_link	= msm8x16_9326_dai_links,
-	.num_links	= ARRAY_SIZE(msm8x16_9326_dai_links),
-};
-
-static struct snd_soc_card bear_cards[MAX_SND_CARDS] = {
+static struct snd_soc_card bear_cards = {
 	/* snd_soc_card_msm8x16 */
-	{
 		.name		= "msm8x16-snd-card",
-		.dai_link	= msm8x16_wcd_dai_links,
-		.num_links	= ARRAY_SIZE(msm8x16_wcd_dai_links),
-	},
-	{
-		.name		= "msm8x16-tapan-snd-card",
-		.dai_link	= msm8x16_9326_dai_links,
-		.num_links	= ARRAY_SIZE(msm8x16_9326_dai_links),
-	},
+		.dai_link	= msm8x16_dai,
+		.num_links	= ARRAY_SIZE(msm8x16_dai),
 };
 
 void disable_mclk(struct work_struct *work)
@@ -2824,34 +2787,25 @@ int populate_ext_snd_card_dt_data(struct platform_device *pdev)
 }
 
 static struct snd_soc_card *populate_ext_snd_card_dailinks(
-        struct platform_device *pdev)
+    struct platform_device *pdev)
 {
-    struct snd_soc_dai_link *msm8x16_dai_links = NULL;
-    struct snd_soc_card *card;
-    int num_links;
+	struct snd_soc_dai_link *msm8x16_dai_links_init;
+	struct snd_soc_card *card = &bear_cards;
+	int num_links;
 
-    pr_debug("%s: CARD is 8x16 wcd internal card\n", __func__);
+	// Инициализация DAI links
+	pr_debug("%s: CARD is 8x16 wcd internal card\n", __func__);
 
-    card = &bear_cards[pdev->id];
-    num_links = ARRAY_SIZE(msm8x16_wcd_dai_links);
+	num_links = ARRAY_SIZE(msm8x16_dai);
 
-    memcpy(msm8x16_wcd_dai_links, msm8x16_dai,
-           sizeof(msm8x16_dai));
-    memcpy(msm8x16_wcd_dai_links + ARRAY_SIZE(msm8x16_dai),
-           msm8x16_wcd_dai, sizeof(msm8x16_wcd_dai));
+	memcpy(msm8x16_wcd_dai_links, msm8x16_dai, sizeof(msm8x16_dai));
+	msm8x16_dai_links_init = msm8x16_wcd_dai_links;
 
-    msm8x16_dai_links = msm8x16_wcd_dai_links;
+	card->dai_link = msm8x16_dai_links_init;
+	card->num_links = num_links;
+	card->dev = &pdev->dev;
 
-    /* No external aux codecs for this target */
-    card->aux_dev = NULL;
-    card->codec_conf = NULL;
-    card->num_configs = 0;
-    card->num_aux_devs = 0;
-    card->dai_link = msm8x16_dai_links;
-    card->num_links = num_links;
-    card->dev = &pdev->dev;
-
-    return card;
+	return card;
 }
 
 static int msm8x16_populate_dai_link_component_of_node(
@@ -3054,31 +3008,8 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 			"%s: missing %s in dt node\n", __func__, codec_type);
 		goto err;
 	}
-	if (pdev->id >= MAX_SND_CARDS) {
-		dev_err(&pdev->dev, "Sound Card parsed is wrong, id=%d\n",
-				pdev->id);
-		ret = -EINVAL;
-		goto err;
-	}
-	if (!strcmp(ptr, "external")) {
-		dev_info(&pdev->dev, "external codec is configured\n");
-		pdata->codec_type = 1;
-			/*Populate external codec TLMM configs*/
-		ret = populate_ext_snd_card_dt_data(pdev);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "error finding the DT\n"
-				"params ret=%d\n", ret);
-			goto err;
-		}
-		card = populate_ext_snd_card_dailinks(pdev);
-		if (!card) {
-			dev_err(&pdev->dev, "%s: Card uninitialized\n",
-				__func__);
-			ret = -EPROBE_DEFER;
-			goto err;
-		}
-	} else {
-		card = populate_ext_snd_card_dailinks(pdev);
+
+	card = populate_ext_snd_card_dailinks(pdev);
 		if (!card) {
 			dev_err(&pdev->dev, "%s: Card uninitialized\n",
 				__func__);
@@ -3127,7 +3058,6 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 					__func__, ret);
 			goto err;
 		}
-	}
 
 	ret = of_property_read_string(pdev->dev.of_node,
 		hs_micbias_type, &type);
