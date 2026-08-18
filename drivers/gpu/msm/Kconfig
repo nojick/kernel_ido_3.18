@@ -10,6 +10,7 @@ config MSM_KGSL
 	select PM_DEVFREQ
 	select DEVFREQ_GOV_SIMPLE_ONDEMAND
 	select DEVFREQ_GOV_PERFORMANCE
+	select DEVFREQ_GOV_MSM_ADRENO_TZ
 	select DEVFREQ_GOV_MSM_GPUBW_MON
 	select ONESHOT_SYNC if SYNC
 	---help---
@@ -39,6 +40,7 @@ config MSM_KGSL_CFF_DUMP_NO_CONTEXT_MEM_DUMP
 
 config MSM_ADRENO_DEFAULT_GOVERNOR
 	string "devfreq governor for the adreno core"
+	default "msm-adreno-tz" if DEVFREQ_GOV_MSM_ADRENO_TZ
 	default "simple_ondemand"
 	depends on MSM_KGSL
 
