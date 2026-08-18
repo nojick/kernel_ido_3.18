@@ -19,6 +19,9 @@
 #include "kgsl_device.h"
 #include "kgsl_trace.h"
 
+#define FAST_BUS 1
+#define SLOW_BUS -1
+
 /*
  * "SLEEP" is generic counting both NAP & SLUMBER
  * PERIODS generally won't exceed 9 for the relavent 150msec
@@ -799,9 +802,6 @@ int kgsl_pwrscale_init(struct device *dev, const char *governor)
 
 	/* initialize msm-adreno-tz governor specific data here */
 	data = gpu_profile->private_data;
-
-	data->disable_busy_time_burst = of_property_read_bool(
-		device->pdev->dev.of_node, "qcom,disable-busy-time-burst");
 
 	data->ctxt_aware_enable =
 		of_property_read_bool(device->pdev->dev.of_node,
