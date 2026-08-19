@@ -161,10 +161,8 @@ static int generic_exec_single(int cpu, struct call_single_data *csd,
 	}
 
 
-	if ((unsigned)cpu >= nr_cpu_ids || !cpu_online(cpu)) {
-		csd_unlock(csd);
+	if ((unsigned)cpu >= nr_cpu_ids || !cpu_online(cpu))
 		return -ENXIO;
-	}
 
 
 	if (!csd) {
