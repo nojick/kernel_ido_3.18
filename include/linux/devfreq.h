@@ -169,7 +169,6 @@ struct devfreq {
 	struct delayed_work work;
 
 	unsigned long previous_freq;
-	struct devfreq_dev_status last_status;
 
 	void *data; /* private data for governors */
 
