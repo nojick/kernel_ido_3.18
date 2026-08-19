@@ -54,11 +54,7 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 #include <linux/compiler-gcc.h>
 #endif
 
-#ifdef CC_USING_HOTPATCH
-#define notrace __attribute__((hotpatch(0,0)))
-#else
 #define notrace __attribute__((no_instrument_function))
-#endif
 
 /* Intel compiler defines __GNUC__. So we will overwrite implementations
  * coming from above header files here
