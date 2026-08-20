@@ -2410,36 +2410,6 @@ static int a5xx_critical_packet_submit(struct adreno_device *adreno_dev,
 	return ret;
 }
 
-static int a5xx_critical_packet_submit(struct adreno_device *adreno_dev,
-					struct adreno_ringbuffer *rb)
-{
-	unsigned int *cmds;
-	int ret;
-
-	if (!critical_packet_constructed)
-		return 0;
-
-	cmds = adreno_ringbuffer_allocspace(rb, 4);
-	if (IS_ERR(cmds))
-		return PTR_ERR(cmds);
-
-	*cmds++ = cp_mem_packet(adreno_dev, CP_INDIRECT_BUFFER_PFE, 2, 1);
-	cmds += cp_gpuaddr(adreno_dev, cmds, crit_pkts.gpuaddr);
-	*cmds++ = crit_pkts_dwords;
-
-	ret = adreno_ringbuffer_submit_spin(rb, NULL, 20);
-	if (ret != 0) {
-		struct kgsl_device *device = &adreno_dev->dev;
-
-		dev_err(device->dev,
-			"Critical packet submission failed to idle\n");
-		spin_idle_debug(device);
-		kgsl_device_snapshot(device, NULL);
-	}
-
-	return ret;
-}
-
 /*
  * a5xx_rb_init() - Initialize ringbuffer
  * @adreno_dev: Pointer to adreno device
