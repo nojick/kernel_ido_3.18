@@ -349,7 +349,7 @@
 	};
 
 	qcom,lpm-levels {
-		//compatible = "qcom,lpm-levels";
+		compatible = "qcom,lpm-levels";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
@@ -558,7 +558,7 @@
 	};
 
 	qcom,lpm-workarounds {
-		//compatible = "qcom,lpm-workarounds";
+		compatible = "qcom,lpm-workarounds";
 		reg = <0x0B1D1500 0x4>,
 		      <0x0B1D1500 0x4>;
 		reg-names = "l2-pwr-sts", "l1-l2-gcc";
