@@ -16,6 +16,7 @@
 		compatible = "qcom,msm8939-pinctrl", "qcom,msm8916-pinctrl";
 		reg = <0x1000000 0x300000>;
 		interrupts = <0 208 0>;
+		reg-names = "pinctrl_regs";
 		gpio-controller;
 		#gpio-cells = <2>;
 		interrupt-controller;
@@ -532,8 +533,9 @@
 				};
 			};
 		};
-
+#if 0
 		 spi0 {
+
 			spi0_default: spi0_default {
 				mux {
 					pins = "gpio8", "gpio9",
@@ -586,7 +588,7 @@
 				};
 			};
 		};
-
+#endif
 		spi_5 {
 			spi_5_active: spi_5_active {
 				mux {
@@ -1107,7 +1109,7 @@
 					pins = "gpio63", "gpio64",
 						"gpio65", "gpio66",
 						"gpio67", "gpio68";
-					function = "gpio";
+					function = "cdc_pdm0";
 				};
 
 				config {
@@ -1124,7 +1126,7 @@
 					pins = "gpio63", "gpio64",
 						"gpio65", "gpio66",
 						"gpio67", "gpio68";
-					function = "gpio";
+					function = "cdc_pdm0";
 				};
 
 				config {
@@ -1595,7 +1597,7 @@
 			};
 		};
 
-
+#if 0
 		/* CoreSight */
 		tpiu_seta_1 {
 			mux {
@@ -1609,7 +1611,7 @@
 				bias-disable;
 			};
 		};
-
+#endif
 		tpiu_seta_2 {
 			mux {
 				pins = "gpio9";
@@ -2051,7 +2053,7 @@
 				bias-disable;
 			};
 		};
-
+#if 0
 		tpiu_setb_18 {
 			mux {
 				pins = "gpio121";
@@ -2064,7 +2066,7 @@
 				bias-disable;
 			};
 		};
-
+#endif
 		uicc {
 			uicc_active: active {
 				mux {
