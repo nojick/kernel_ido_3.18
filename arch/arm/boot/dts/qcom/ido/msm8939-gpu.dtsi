@@ -19,7 +19,7 @@
 	/* To use BIMC based bus governor */
 	gpubw: qcom,gpubw {
 		compatible = "qcom,devbw";
-		governor = "bw_hwmon";
+		governor = "bw_vbif";
 		qcom,src-dst-ports = <26 512>;
 
 		/*
@@ -60,7 +60,7 @@
 
 		qcom,chipid = <0x04000500>;
 
-		qcom,initial-pwrlevel = <2>;
+		qcom,initial-pwrlevel = <0>;
 
 		qcom,idle-timeout = <80>; //msecs
 
@@ -70,12 +70,6 @@
 		 */
 		qcom,deep-nap-timeout = <20>; //msecs
 		qcom,strtstp-sleepwake;
-
-		/* Clocks = KGSL_CLK_CORE | KGSL_CLK_IFACE | KGSL_CLK_MEM |
-		KGSL_CLK_MEM_IFACE | KGSL_CLK_ALT_MEM_IFACE |
-		KGSL_CLK_RBBMTIMER */
-		qcom,clk-map = <0x000003DE>;
-
 
 		clocks = <&clock_gcc clk_gcc_oxili_gfx3d_clk>,
 		         <&clock_gcc clk_gcc_oxili_ahb_clk>,
@@ -92,18 +86,6 @@
 		              "gtcu_iface_clk", "gtcu_clk", "gtbu_clk",
 		              "rbbmtimer_clk";
 
-/*
-		clocks = <&clock_gcc clk_gcc_oxili_gfx3d_clk>,
-		         <&clock_gcc clk_gcc_oxili_ahb_clk>,
-		         <&clock_gcc clk_gcc_oxili_gmem_clk>,
-		         <&clock_gcc clk_gcc_bimc_gfx_clk>,
-		         <&clock_gcc clk_gcc_bimc_gpu_clk>,
-			 <&clock_gcc clk_gcc_oxili_timer_clk>;
-
-		clock-names = "core_clk", "iface_clk", "mem_clk",
-		              "mem_iface_clk", "alt_mem_iface_clk",
-		              "rbbmtimer_clk";
-*/
 		/* Bus Scale Settings */
 		qcom,gpubw-dev = <&gpubw>;
 
@@ -136,7 +118,7 @@
 		coresight-child-ports = <4>;
 
 		/* CPU latency parameter */
-		qcom,pm-qos-active-latency = <401>;
+		qcom,pm-qos-active-latency = <601>;
 		qcom,pm-qos-wakeup-latency = <401>;
 
 		/* Power levels */
@@ -150,6 +132,8 @@
 				reg = <0>;
 				qcom,gpu-freq = <550000000>;
 				qcom,bus-freq = <4>;
+				qcom,bus-min = <0>;
+				qcom,bus-max = <4>;
 			};
 
 			qcom,gpu-pwrlevel@1 {
@@ -162,6 +146,8 @@
 				reg = <2>;
 				qcom,gpu-freq = <400000000>;
 				qcom,bus-freq = <2>;
+				qcom,bus-min = <2>;
+				qcom,bus-max = <3>;
 			};
 
 			qcom,gpu-pwrlevel@3 {
@@ -192,12 +178,13 @@
 			<&clock_gcc clk_gcc_gfx_tbu_clk>;
 		clock-names = "scfg_clk", "gtcu_clk", "gtcu_iface_clk",
 				"gtbu_clk";
-/*		qcom,secure_align_mask = <0xfff>;
-		qcom,retention;
-*/
+		//qcom,secure_align_mask = <0xfff>;
+		//qcom,retention;
+
 		gfx3d_user: gfx3d_user {
 			compatible = "qcom,smmu-kgsl-cb";
 			label = "gfx3d_user";
+			//iommus = <&gfx_iommu 0>;
 			qcom,gpu-offset = <0x48000>;
 		};
 	};
