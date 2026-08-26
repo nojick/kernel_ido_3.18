@@ -1486,7 +1486,7 @@
 			mux {
 				/* CLK, DATA */
 				pins = "gpio26";
-				function = "cam_mclk";
+				function = "cam_mclk0";
 			};
 
 			config {
@@ -1501,7 +1501,7 @@
 			mux {
 				/* CLK, DATA */
 				pins = "gpio26";
-				function = "cam_mclk";
+				function = "cam_mclk0";
 			};
 
 			config {
@@ -1516,7 +1516,7 @@
 			mux {
 				/* CLK, DATA */
 				pins = "gpio27";
-				function = "cam_mclk";
+				function = "cam_mclk1";
 			};
 
 			config {
@@ -1531,7 +1531,7 @@
 			mux {
 				/* CLK, DATA */
 				pins = "gpio27";
-				function = "cam_mclk";
+				function = "cam_mclk1";
 			};
 
 			config {
