@@ -9,10 +9,11 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Xiaomi Redmi 3";
-	compatible = "xiaomi,ido", "qcom,msm8939", "qcom,msm8939-qrd-skuk", "qcom,qrd";
+	model = "Qualcomm Technologies, Inc. MSM8939";
+	compatible = "qcom,msm8939-qrd-ido", "qcom,msm8939-qrd", "qcom,msm8939", "qcom,qrd";
 	chassis-type = "handset";
-	qcom,msm-id = <239 0>;
+	qcom,msm-id = <239 0x30000>, <241 0x30000>, <263 0x30000>;
+	qcom,msm-name = "MSM8939";
 	qcom,board-id = <0x1000b 11>, <0x2000b 11>;
 
        firmware: firmware {
