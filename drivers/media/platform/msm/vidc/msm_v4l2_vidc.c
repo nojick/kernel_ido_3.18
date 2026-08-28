@@ -14,7 +14,6 @@
 #include <linux/debugfs.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
-#include <linux/io.h>
 #include <linux/ioctl.h>
 #include <linux/list.h>
 #include <linux/module.h>
