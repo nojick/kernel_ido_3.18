@@ -573,13 +573,9 @@ static int msm_vidc_probe_vidc_device(struct platform_device *pdev)
 				core->resources.pf_ver_tbl;
 
 			efuse = readl_relaxed(base);
-			if (pf_ver_tbl != NULL)
-				vidc_driver->platform_version =
-					(efuse & pf_ver_tbl->version_mask) >>
-					pf_ver_tbl->version_shift;
-			else /* Fall back to standard platform version probing */
-				vidc_driver->platform_version =
-					(efuse & 0x60000000) >> 29;
+			vidc_driver->platform_version =
+				(efuse & pf_ver_tbl->version_mask) >>
+				pf_ver_tbl->version_shift;
 			dprintk(VIDC_DBG,
 				"efuse 0x%x, platform version 0x%x\n",
 				efuse, vidc_driver->platform_version);
