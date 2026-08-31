@@ -65,7 +65,7 @@
 			reg = <0x0 0x8be00000 0x0 0x0600000>;
 		};
 
-		venus_mem: venus_region@0 {
+		venus_mem: venus_region {
 			compatible = "shared-dma-pool";
 			reusable;
 			alloc-ranges = <0x0 0x80000000 0x0 0x10000000>;
