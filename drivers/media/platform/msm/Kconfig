@@ -46,6 +46,9 @@ config MSMB_CAMERA_DEBUG
 
 if MSMB_CAMERA
 source "drivers/media/platform/msm/camera_v2/Kconfig"
+if CAMERA_IDO
+source "drivers/media/platform/msm/camera_v2_ido/Kconfig"
+endif
 endif # MSMB_CAMERA
 
 source "drivers/media/platform/msm/ais/Kconfig"

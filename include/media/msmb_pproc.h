@@ -1,3 +1,6 @@
+#ifdef CONFIG_CAMERA_IDO
+#include "msmb_pproc_ido.h"
+#else
 #ifndef __MSMB_PPROC_H
 #define __MSMB_PPROC_H
 
@@ -152,4 +155,4 @@ struct msm_camera_v4l2_ioctl32_t {
 #endif
 
 #endif
-
+#endif /*CONFIG_CAMERA_IDO*/

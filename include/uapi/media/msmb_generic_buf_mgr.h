@@ -1,3 +1,6 @@
+#ifdef CONFIG_CAMERA_IDO
+#include "msmb_generic_buf_mgr_ido.h"
+#else
 #ifndef __UAPI_MEDIA_MSMB_GENERIC_BUF_MGR_H__
 #define __UAPI_MEDIA_MSMB_GENERIC_BUF_MGR_H__
 
@@ -63,4 +66,4 @@ struct msm_buf_mngr_main_cont_info {
 	struct msm_camera_private_ioctl_arg)
 
 #endif
-
+#endif

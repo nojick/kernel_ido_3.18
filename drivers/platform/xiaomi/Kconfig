@@ -13,6 +13,12 @@ config MACH_XIAOMI_MSM8916
 	help
 	  Support for MSM8916 Xiaomi variants
 
+config CAMERA_IDO
+	bool "XIAOMI MSM8916"
+	depends on MACH_XIAOMI_IDO
+	help
+	 legacy camera ido kernel 3.10
+
 menu "Xiaomi board selection"
 
 	config MACH_XIAOMI_IDO

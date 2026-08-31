@@ -10,7 +10,9 @@
  * GNU General Public License for more details.
  *
  */
-
+#ifdef CONFIG_CAMERA_IDO
+#include "camera2_ido.h"
+#else
 #ifndef __CAMERA2_H__
 #define __CAMERA2_H__
 
@@ -223,4 +225,5 @@ struct msm_eeprom_board_info {
 	enum i2c_freq_mode_t i2c_freq_mode;
 };
 
+#endif
 #endif

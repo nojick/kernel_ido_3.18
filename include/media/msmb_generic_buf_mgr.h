@@ -9,7 +9,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
-
+#ifndef CONFIG_CAMERA_IDO
 #ifndef __MEDIA_MSMB_GENERIC_BUF_MGR_H__
 #define __MEDIA_MSMB_GENERIC_BUF_MGR_H__
 
@@ -46,4 +46,6 @@ struct msm_buf_mngr_info32_t {
 #endif
 
 #endif
-
+#else
+#include <uapi/media/msmb_generic_buf_mgr.h>
+#endif /*CONFIG_CAMERA_IDO*/
