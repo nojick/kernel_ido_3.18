@@ -14,7 +14,6 @@
 
 
 &soc {
-#if 0
 	flash_SGM3780:flashlight {
 		compatible = "qcom,leds-gpio-flash";
 		status = "okay";
@@ -36,7 +35,6 @@
 		qcom,flash-source = <&flash_SGM3780>;
 		qcom,torch-source = <&flash_SGM3780>;
 	};
-#endif
 };
 
 &cci {
@@ -103,9 +101,8 @@
 		clocks = <&clock_gcc clk_mclk0_clk_src>,
 				<&clock_gcc clk_gcc_camss_mclk0_clk>;
 		clock-names = "cam_src_clk", "cam_clk";
-		qcom,clock-rates = <19200000 0>;
 	};
-#if 0
+
 eeprom1: qcom,eeprom@20 {
 		cell-index = <1>;
 		reg = <0x6d>;
@@ -410,5 +407,4 @@ eeprom1: qcom,eeprom@20 {
 				<&clock_gcc clk_gcc_camss_mclk1_clk>;
 		clock-names = "cam_src_clk", "cam_clk";
 	};
-#endif
 };
