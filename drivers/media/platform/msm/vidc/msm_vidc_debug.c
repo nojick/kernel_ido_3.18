@@ -12,27 +12,21 @@
  */
 
 #define CREATE_TRACE_POINTS
-#include "msm_vidc_common.h"
 #define MAX_SSR_STRING_LEN 10
 #include "msm_vidc_debug.h"
 #include "vidc_hfi_api.h"
 
+#define MAX_DBG_BUF_SIZE 4096
 int msm_vidc_debug = VIDC_ERR | VIDC_WARN;
 int msm_vidc_debug_out = VIDC_OUT_PRINTK;
-int msm_vidc_fw_debug = 0x18;
-int msm_vidc_fw_debug_mode = 1;
-int msm_vidc_fw_low_power_mode = 1;
+int msm_fw_debug = 0x18;
+int msm_fw_debug_mode = 0x1;
+int msm_fw_low_power_mode = 0x1;
 int msm_vidc_hw_rsp_timeout = 1000;
-int msm_vidc_fw_coverage = 0;
-int msm_vidc_dec_dcvs_mode = 1;
-int msm_vidc_enc_dcvs_mode = 1;
-int msm_vidc_sys_idle_indicator = 0;
-int msm_vidc_firmware_unload_delay = 15000;
-int msm_vidc_thermal_mitigation_disabled = 0;
-int msm_vidc_bitrate_clock_scaling = 1;
-int msm_vidc_debug_timeout = 0;
-
-#define MAX_DBG_BUF_SIZE 4096
+u32 msm_fw_coverage = 0x0;
+int msm_vidc_dcvs_mode = 0x1;
+int msm_vidc_sys_idle_indicator = 0x0;
+u32 msm_vidc_firmware_unload_delay = 15000;
 
 #define DYNAMIC_BUF_OWNER(__binfo) ({ \
 	atomic_read(&__binfo->ref_count) == 2 ? "video driver" : "firmware";\
@@ -66,7 +60,7 @@ static ssize_t core_info_read(struct file *file, char __user *buf,
 {
 	struct msm_vidc_core *core = file->private_data;
 	struct hfi_device *hdev;
-	struct hal_fw_info fw_info = { {0} };
+	struct hal_fw_info fw_info;
 	char *dbuf, *cur, *end;
 	int i = 0, rc = 0;
 	ssize_t len = 0;
@@ -168,7 +162,6 @@ static const struct file_operations ssr_fops = {
 
 struct dentry *msm_vidc_debugfs_init_drv(void)
 {
-	bool ok = false;
 	struct dentry *dir = NULL;
 
 	dir = debugfs_create_dir("msm_vidc", NULL);
@@ -177,44 +170,58 @@ struct dentry *msm_vidc_debugfs_init_drv(void)
 		goto failed_create_dir;
 	}
 
-#define __debugfs_create(__type, __name, __value) ({                          \
-	struct dentry *f = debugfs_create_##__type(__name, S_IRUGO | S_IWUSR, \
-		dir, __value);                                                \
-	if (IS_ERR_OR_NULL(f)) {                                              \
-		dprintk(VIDC_ERR, "Failed creating debugfs file '%pd/%s'\n",  \
-			dir, __name);                                         \
-		f = NULL;                                                     \
-	}                                                                     \
-	f;                                                                    \
-})
-
-	ok =
-	__debugfs_create(x32, "debug_level", &msm_vidc_debug) &&
-	__debugfs_create(x32, "fw_level", &msm_vidc_fw_debug) &&
-	__debugfs_create(u32, "fw_debug_mode", &msm_vidc_fw_debug_mode) &&
-	__debugfs_create(bool, "fw_coverage", &msm_vidc_fw_coverage) &&
-	__debugfs_create(bool, "dcvs_dec_mode", &msm_vidc_dec_dcvs_mode) &&
-	__debugfs_create(bool, "dcvs_enc_mode", &msm_vidc_enc_dcvs_mode) &&
-	__debugfs_create(u32, "fw_low_power_mode",
-			&msm_vidc_fw_low_power_mode) &&
-	__debugfs_create(u32, "debug_output", &msm_vidc_debug_out) &&
-	__debugfs_create(u32, "hw_rsp_timeout", &msm_vidc_hw_rsp_timeout) &&
-	__debugfs_create(bool, "sys_idle_indicator",
-			&msm_vidc_sys_idle_indicator) &&
-	__debugfs_create(u32, "firmware_unload_delay",
-			&msm_vidc_firmware_unload_delay) &&
-	__debugfs_create(bool, "disable_thermal_mitigation",
-			&msm_vidc_thermal_mitigation_disabled) &&
-	__debugfs_create(bool, "bitrate_clock_scaling",
-			&msm_vidc_bitrate_clock_scaling) &&
-	__debugfs_create(bool, "debug_timeout",
-			&msm_vidc_debug_timeout);
-
-#undef __debugfs_create
-
-	if (!ok)
+	if (!debugfs_create_u32("debug_level", S_IRUGO | S_IWUSR,
+			dir, &msm_vidc_debug)) {
+		dprintk(VIDC_ERR, "debugfs_create_file: fail\n");
 		goto failed_create_dir;
-
+	}
+	if (!debugfs_create_u32("fw_level", S_IRUGO | S_IWUSR,
+			dir, &msm_fw_debug)) {
+		dprintk(VIDC_ERR, "debugfs_create_file: fail\n");
+		goto failed_create_dir;
+	}
+	if (!debugfs_create_u32("fw_debug_mode", S_IRUGO | S_IWUSR,
+			dir, &msm_fw_debug_mode)) {
+		dprintk(VIDC_ERR, "debugfs_create_file: fail\n");
+		goto failed_create_dir;
+	}
+	if (!debugfs_create_u32("fw_coverage", S_IRUGO | S_IWUSR,
+			dir, &msm_fw_coverage)) {
+		dprintk(VIDC_WARN, "debugfs_create_file fw_coverage: fail\n");
+		goto failed_create_dir;
+	}
+	if (!debugfs_create_u32("dcvs_mode", S_IRUGO | S_IWUSR,
+			dir, &msm_vidc_dcvs_mode)) {
+		dprintk(VIDC_WARN, "debugfs_create_file dcvs_mode: fail\n");
+		goto failed_create_dir;
+	}
+	if (!debugfs_create_u32("fw_low_power_mode", S_IRUGO | S_IWUSR,
+			dir, &msm_fw_low_power_mode)) {
+		dprintk(VIDC_ERR, "debugfs_create_file: fail\n");
+		goto failed_create_dir;
+	}
+	if (!debugfs_create_u32("debug_output", S_IRUGO | S_IWUSR,
+			dir, &msm_vidc_debug_out)) {
+		dprintk(VIDC_ERR, "debugfs_create_file: fail\n");
+		goto failed_create_dir;
+	}
+	if (!debugfs_create_u32("hw_rsp_timeout", S_IRUGO | S_IWUSR,
+			dir, &msm_vidc_hw_rsp_timeout)) {
+		dprintk(VIDC_ERR, "debugfs_create_file: fail\n");
+		goto failed_create_dir;
+	}
+	if (!debugfs_create_bool("sys_idle_indicator", S_IRUGO | S_IWUSR,
+			dir, &msm_vidc_sys_idle_indicator)) {
+		dprintk(VIDC_ERR,
+			"debugfs_create_file: sys_idle_indicator fail\n");
+		goto failed_create_dir;
+	}
+	if (!debugfs_create_u32("firmware_unload_delay", S_IRUGO | S_IWUSR,
+			dir, &msm_vidc_firmware_unload_delay)) {
+		dprintk(VIDC_ERR,
+			"debugfs_create_file: firmware_unload_delay fail\n");
+		goto failed_create_dir;
+	}
 	return dir;
 
 failed_create_dir:
@@ -294,14 +301,6 @@ static int publish_unreleased_reference(struct msm_vidc_inst *inst,
 	return 0;
 }
 
-static void put_inst_helper(struct kref *kref)
-{
-	struct msm_vidc_inst *inst = container_of(kref,
-			struct msm_vidc_inst, kref);
-
-	msm_vidc_destroy(inst);
-}
-
 static ssize_t inst_info_read(struct file *file, char __user *buf,
 		size_t count, loff_t *ppos)
 {
@@ -325,7 +324,7 @@ static ssize_t inst_info_read(struct file *file, char __user *buf,
 		if (temp == inst)
 			break;
 	}
-	inst = ((temp == inst) && kref_get_unless_zero(&inst->kref)) ?
+	inst = (temp == inst)?
 		inst : NULL;
 	mutex_unlock(&core->lock);
 
@@ -361,11 +360,11 @@ static ssize_t inst_info_read(struct file *file, char __user *buf,
 		cur += write_str(cur, end - cur, "capability: %s\n",
 			i == OUTPUT_PORT ? "Output" : "Capture");
 		cur += write_str(cur, end - cur, "name : %s\n",
-			inst->fmts[i].name);
+			inst->fmts[i]->name);
 		cur += write_str(cur, end - cur, "planes : %d\n",
-			inst->fmts[i].num_planes);
+			inst->fmts[i]->num_planes);
 		cur += write_str(cur, end - cur,
-			"type: %s\n", inst->fmts[i].type == OUTPUT_PORT ?
+			"type: %s\n", inst->fmts[i]->type == OUTPUT_PORT ?
 			"Output" : "Capture");
 
 		switch (inst->buffer_mode_set[i]) {
@@ -389,7 +388,7 @@ static ssize_t inst_info_read(struct file *file, char __user *buf,
 		cur += write_str(cur, end - cur, "count: %u\n",
 				inst->bufq[i].vb2_bufq.num_buffers);
 
-		for (j = 0; j < inst->fmts[i].num_planes; j++)
+		for (j = 0; j < inst->fmts[i]->num_planes; j++)
 			cur += write_str(cur, end - cur,
 			"size for plane %d: %u\n", j,
 			inst->bufq[i].vb2_bufq.plane_sizes[j]);
@@ -415,7 +414,6 @@ static ssize_t inst_info_read(struct file *file, char __user *buf,
 
 	kfree(dbuf);
 failed_alloc:
-	kref_put(&inst->kref, put_inst_helper);
 	return len;
 }
 
@@ -443,6 +441,7 @@ struct dentry *msm_vidc_debugfs_init_inst(struct msm_vidc_inst *inst,
 		dprintk(VIDC_ERR, "Invalid params, inst: %pK\n", inst);
 		goto exit;
 	}
+
 	snprintf(debugfs_name, MAX_DEBUGFS_NAME, "inst_%pK", inst);
 
 	idata = kzalloc(sizeof(struct core_inst_pair), GFP_KERNEL);
@@ -504,18 +503,14 @@ void msm_vidc_debugfs_update(struct msm_vidc_inst *inst,
 	char a[64] = "Frame processing";
 	switch (e) {
 	case MSM_VIDC_DEBUGFS_EVENT_ETB:
-		mutex_lock(&inst->lock);
 		inst->count.etb++;
-		mutex_unlock(&inst->lock);
 		if (inst->count.ebd && inst->count.ftb > inst->count.fbd) {
 			d->pdata[FRAME_PROCESSING].name[0] = '\0';
 			tic(inst, FRAME_PROCESSING, a);
 		}
 	break;
 	case MSM_VIDC_DEBUGFS_EVENT_EBD:
-		mutex_lock(&inst->lock);
 		inst->count.ebd++;
-		mutex_unlock(&inst->lock);
 		if (inst->count.ebd && inst->count.ebd == inst->count.etb) {
 			toc(inst, FRAME_PROCESSING);
 			dprintk(VIDC_PROF, "EBD: FW needs input buffers\n");
