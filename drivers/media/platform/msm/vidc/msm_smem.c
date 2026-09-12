@@ -56,7 +56,6 @@ static int get_device_address(struct smem_client *smem_client,
 	}
 
 	if (is_iommu_present(smem_client->res)) {
-		phys_addr_t phys, orig_phys;
 		cb = msm_smem_get_context_bank(smem_client, flags & SMEM_SECURE,
 				buffer_type);
 		if (!cb) {
