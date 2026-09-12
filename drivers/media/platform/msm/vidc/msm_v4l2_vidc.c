@@ -23,6 +23,7 @@
 #include <linux/qcom_iommu.h>
 #include <linux/msm_iommu_domains.h>
 #include <media/msm_vidc.h>
+#include "msm_vidc_common.h"
 #include "msm_vidc_internal.h"
 #include "msm_vidc_debug.h"
 #include "vidc_hfi_api.h"
