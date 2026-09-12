@@ -2016,8 +2016,8 @@ static int venus_hfi_get_qdss_iommu_virtual_addr(struct venus_hfi_device *dev,
 	for (i = 0; i < num_entries; i++) {
 		if (mapping) {
 			rc = iommu_map(mapping->domain, iova,
-					qdss_addr_tbl[i][0],
-					qdss_addr_tbl[i][1],
+					qdss_addr_tbl[i].start,
+					qdss_addr_tbl[i].size,
 					IOMMU_READ | IOMMU_WRITE);
 
 			if (rc) {
