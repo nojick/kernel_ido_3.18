@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,7 +23,6 @@
 #endif
 
 #define VIDC_DBG_TAG VIDC_DBG_LABEL ": %4s: "
-#define VIDC_DBG_WARN_ENABLE (msm_vidc_debug & VIDC_INFO)
 
 /* To enable messages OR these values and
  * echo the result to debugfs file.
@@ -66,8 +65,6 @@ extern int msm_vidc_enc_dcvs_mode;
 extern int msm_vidc_sys_idle_indicator;
 extern int msm_vidc_firmware_unload_delay;
 extern int msm_vidc_thermal_mitigation_disabled;
-extern int msm_vidc_bitrate_clock_scaling;
-extern int msm_vidc_debug_timeout;
 
 #define VIDC_MSG_PRIO2STRING(__level) ({ \
 	char *__str; \
@@ -124,7 +121,6 @@ struct dentry *msm_vidc_debugfs_init_core(struct msm_vidc_core *core,
 		struct dentry *parent);
 struct dentry *msm_vidc_debugfs_init_inst(struct msm_vidc_inst *inst,
 		struct dentry *parent);
-void msm_vidc_debugfs_deinit_inst(struct msm_vidc_inst *inst);
 void msm_vidc_debugfs_update(struct msm_vidc_inst *inst,
 		enum msm_vidc_debugfs_event e);
 
