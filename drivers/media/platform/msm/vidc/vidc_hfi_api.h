@@ -1421,6 +1421,8 @@ struct hfi_device {
 	int (*vote_bus)(void *dev, struct vidc_bus_vote_data *data,
 			int num_data);
 	int (*get_fw_info)(void *dev, enum fw_info info);
+	int (*get_stride_scanline)(int color_fmt, int width,
+		int height,	int *stride, int *scanlines);
 	int (*session_clean)(void *sess);
 	int (*get_core_capabilities)(void *dev);
 	int (*suspend)(void *dev);
