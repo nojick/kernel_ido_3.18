@@ -300,7 +300,6 @@ struct msm_vidc_inst {
 	bool dcvs_mode;
 	enum msm_vidc_pixel_depth bit_depth;
 	struct kref kref;
-	unsigned long instant_bitrate;
 };
 
 extern struct msm_vidc_drv *vidc_driver;
