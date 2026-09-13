@@ -1686,7 +1686,6 @@ static inline int start_streaming(struct msm_vidc_inst *inst)
 {
 	int rc = 0;
 	struct hfi_device *hdev;
-	struct list_head *ptr, *next;
 	struct hal_buffer_size_minimum b;
 	unsigned int buffer_size;
 	struct msm_vidc_format *fmt = NULL;
@@ -2427,8 +2426,8 @@ static int try_set_ctrl(struct msm_vidc_inst *inst, struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VIDC_QBUF_MODE:
 		property_id = HAL_PARAM_SYNC_BASED_INTERRUPT;
-		enable.enable = ctrl->val == V4L2_VIDC_QBUF_BATCHED;
-		pdata = &enable;
+		hal_property.enable = ctrl->val == V4L2_VIDC_QBUF_BATCHED;
+		pdata = &hal_property;
 		break;
 	case V4L2_CID_MPEG_VIDC_VIDEO_PRIORITY:
 		property_id = HAL_CONFIG_REALTIME;
