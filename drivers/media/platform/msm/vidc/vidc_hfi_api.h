@@ -220,7 +220,6 @@ enum hal_property {
 	HAL_PARAM_VENC_HIER_B_MAX_ENH_LAYERS,
 	HAL_PARAM_VDEC_NON_SECURE_OUTPUT2,
 	HAL_PARAM_VENC_HIER_P_HYBRID_MODE,
-	HAL_PARAM_SYNC_BASED_INTERRUPT,
 	HAL_PARAM_VENC_CONSTRAINED_INTRA_PRED,
 	HAL_PARAM_VENC_VIDEO_SIGNAL_INFO,
 };
@@ -1433,9 +1432,9 @@ typedef void (*hfi_cmd_response_callback) (enum hal_command_response cmd,
 			void *data);
 typedef void (*msm_vidc_callback) (u32 response, void *callback);
 
-struct hfi_device *vidc_hfi_initialize(enum msm_vidc_hfi_type hfi_type,
-		u32 device_id, struct msm_vidc_platform_resources *res,
-		hfi_cmd_response_callback callback);
+void *vidc_hfi_initialize(enum msm_vidc_hfi_type hfi_type, u32 device_id,
+			struct msm_vidc_platform_resources *res,
+			hfi_cmd_response_callback callback);
 void vidc_hfi_deinitialize(enum msm_vidc_hfi_type hfi_type,
 			struct hfi_device *hdev);
 
