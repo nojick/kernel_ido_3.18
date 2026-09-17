@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/msm-bus.h>
 #include <linux/msm-bus-board.h>
+#include <soc/qcom/ocmem.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -33,7 +34,6 @@
 #include <media/msm_media_info.h>
 
 #include "vidc_hfi_api.h"
-#include "vidc_hfi_api.h"
 
 #define MSM_VIDC_DRV_NAME "msm_vidc_driver"
 #define MSM_VIDC_VERSION KERNEL_VERSION(0, 0, 1);
@@ -43,9 +43,7 @@
 #define DEFAULT_WIDTH 1920
 #define MIN_SUPPORTED_WIDTH 32
 #define MIN_SUPPORTED_HEIGHT 32
-
-/* Maintains the number of FTB's between each FBD over a window */
-#define DCVS_FTB_WINDOW 32
+#define MAX_SUPPORTED_INSTANCES_COUNT 13
 
 #define V4L2_EVENT_VIDC_BASE  10
 
@@ -58,13 +56,28 @@
 
 #define MAX_NAME_LENGTH 64
 
-#define EXTRADATA_IDX(__num_planes) ((__num_planes) ? (__num_planes) - 1 : 0)
+#define EXTRADATA_IDX(__num_planes) (__num_planes - 1)
 
 #define NUM_MBS_PER_SEC(__height, __width, __fps) \
 	(NUM_MBS_PER_FRAME(__height, __width) * __fps)
 
 #define NUM_MBS_PER_FRAME(__height, __width) \
 	((ALIGN(__height, 16) / 16) * (ALIGN(__width, 16) / 16))
+
+/* Minimum number of display buffers */
+#define DCVS_MIN_DISPLAY_BUFF 4
+/* Default threshold to reduce the core frequency */
+#define DCVS_NOMINAL_THRESHOLD 8
+/* Default threshold to increase the core frequency */
+#define DCVS_TURBO_THRESHOLD 4
+/* Instance max load above which DCVS kicks in */
+#define DCVS_NOMINAL_LOAD NUM_MBS_PER_SEC(1088, 1920, 60)
+/* Considering one safeguard buffer */
+#define DCVS_BUFFER_SAFEGUARD 1
+/* Maintains the number of FTB's between each FBD over a window */
+#define DCVS_FTB_WINDOW 32
+/* Supported DCVS MBs per frame */
+#define DCVS_MIN_SUPPORTED_MBPERFRAME NUM_MBS_PER_FRAME(2160, 3840)
 
 enum vidc_ports {
 	OUTPUT_PORT,
@@ -197,9 +210,6 @@ struct dcvs_stats {
 	int min_threshold;
 	int max_threshold;
 	bool is_clock_scaled;
-	int etb_counter;
-	bool is_power_save_mode;
-	bool is_additional_buff_added;
 };
 
 struct profile_data {
@@ -239,6 +249,17 @@ struct msm_vidc_core_capability {
 	u32 buffer_size_limit;
 };
 
+struct msm_vidc_idle_stats {
+	bool idle;
+	u32 fb_err_level;
+	u32 prev_fb_err_level;
+	ktime_t start_time;
+	ktime_t avg_idle_time;
+	u32 last_sample_index;
+	u32 sample_count;
+	ktime_t samples[IDLE_TIME_WINDOW_SIZE];
+};
+
 struct msm_vidc_core {
 	struct list_head list;
 	struct mutex lock;
@@ -254,6 +275,7 @@ struct msm_vidc_core {
 	struct msm_vidc_platform_resources resources;
 	u32 enc_codec_supported;
 	u32 dec_codec_supported;
+	struct msm_vidc_idle_stats idle_stats;
 	struct delayed_work fw_unload_work;
 };
 
@@ -280,6 +302,7 @@ struct msm_vidc_inst {
 	struct v4l2_ctrl **cluster;
 	struct v4l2_fh event_handler;
 	struct msm_smem *extradata_handle;
+	wait_queue_head_t kernel_event_queue;
 	bool in_reconfig;
 	u32 reconfig_width;
 	u32 reconfig_height;
@@ -368,9 +391,8 @@ int msm_smem_cache_operations(void *clt, struct msm_smem *mem,
 		enum smem_cache_ops);
 struct msm_smem *msm_smem_user_to_kernel(void *clt, int fd, u32 offset,
 				enum hal_buffer buffer_type);
+bool msm_smem_compare_buffers(void *clt, int fd, void *priv);
 int msm_smem_get_domain_partition(void *clt, u32 flags, enum hal_buffer
 		buffer_type, int *domain_num, int *partition_num);
 void msm_vidc_fw_unload_handler(struct work_struct *work);
-bool msm_smem_compare_buffers(void *clt, int fd, void *priv);
-
 #endif

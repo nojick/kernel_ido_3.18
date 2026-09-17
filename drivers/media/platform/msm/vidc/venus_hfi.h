@@ -17,9 +17,10 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/msm_iommu_domains.h>
-#include "vmem/vmem.h"
+#include <soc/qcom/ocmem.h>
 #include "vidc_hfi_api.h"
 #include "vidc_hfi_helper.h"
 #include "vidc_hfi_api.h"
@@ -116,8 +117,8 @@ enum vidc_hw_reg {
 };
 
 enum bus_index {
-	BUS_IDX_ENC_IMEM,
-	BUS_IDX_DEC_IMEM,
+	BUS_IDX_ENC_OCMEM,
+	BUS_IDX_DEC_OCMEM,
 	BUS_IDX_ENC_DDR,
 	BUS_IDX_DEC_DDR,
 	BUS_IDX_MAX
@@ -140,61 +141,8 @@ struct vidc_iface_q_info {
 	struct vidc_mem_addr q_array;
 };
 
-/*
- * These are helper macros to iterate over various lists within
- * venus_hfi_device->res.  The intention is to cut down on a lot of boiler-plate
- * code
- */
-
-/* Read as "for each 'thing' in a set of 'thingies'" */
-#define venus_hfi_for_each_thing(__device, __thing, __thingy) \
-	venus_hfi_for_each_thing_continue(__device, __thing, __thingy, 0)
-
-#define venus_hfi_for_each_thing_reverse(__device, __thing, __thingy) \
-	venus_hfi_for_each_thing_reverse_continue(__device, __thing, __thingy, \
-			(__device)->res->__thingy##_set.count - 1)
-
-/* TODO: the __from parameter technically not required since we can figure it
- * out with some pointer magic (i.e. __thing - __thing##_tbl[0]).  If this macro
- * sees extensive use, probably worth cleaning it up but for now omitting it
- * since it introduces unneccessary complexity.
- */
-#define venus_hfi_for_each_thing_continue(__device, __thing, __thingy, __from) \
-	for (__thing = &(__device)->res->\
-			__thingy##_set.__thingy##_tbl[__from]; \
-		__thing < &(__device)->res->__thingy##_set.__thingy##_tbl[0] + \
-			((__device)->res->__thingy##_set.count - __from); \
-		++__thing)
-
-#define venus_hfi_for_each_thing_reverse_continue(__device, __thing, __thingy, \
-		__from) \
-	for (__thing = &(__device)->res->\
-			__thingy##_set.__thingy##_tbl[__from]; \
-		__thing >= &(__device)->res->__thingy##_set.__thingy##_tbl[0]; \
-		--__thing)
-
-/* Regular set helpers */
-#define venus_hfi_for_each_regulator(__device, __rinfo) \
-	venus_hfi_for_each_thing(__device, __rinfo, regulator)
-
-#define venus_hfi_for_each_regulator_reverse(__device, __rinfo) \
-	venus_hfi_for_each_thing_reverse(__device, __rinfo, regulator)
-
-#define venus_hfi_for_each_regulator_reverse_continue(__device, __rinfo, \
-		__from) \
-	venus_hfi_for_each_thing_reverse_continue(__device, __rinfo, \
-			regulator, __from)
-
-/* Clock set helpers */
-#define venus_hfi_for_each_clock(__device, __cinfo) \
-	venus_hfi_for_each_thing(__device, __cinfo, clock)
-
-/* Bus set helpers */
-#define venus_hfi_for_each_bus(__device, __binfo) \
-	venus_hfi_for_each_thing(__device, __binfo, bus)
-
-
 /* Internal data used in vidc_hal not exposed to msm_vidc*/
+
 struct hal_data {
 	u32 irq;
 	phys_addr_t firmware_base;
@@ -202,16 +150,20 @@ struct hal_data {
 	u32 register_size;
 };
 
-struct imem {
-	enum imem_type type;
-	union {
-		phys_addr_t vmem;
-	};
+struct venus_bus_info {
+	u32 ddr_handle[MSM_VIDC_MAX_DEVICES];
+	u32 ocmem_handle[MSM_VIDC_MAX_DEVICES];
+};
+
+struct on_chip_mem {
+	struct ocmem_buf *buf;
+	struct notifier_block vidc_ocmem_nb;
+	void *handle;
 };
 
 struct venus_resources {
 	struct msm_vidc_fw fw;
-	struct imem imem;
+	struct on_chip_mem ocmem;
 };
 
 enum venus_hfi_state {
@@ -254,6 +206,7 @@ struct venus_hfi_device {
 	enum venus_hfi_state state;
 	struct hfi_packetization_ops *pkt_ops;
 	enum hfi_packetization_type packetization_type;
+	struct pm_qos_request qos;
 };
 
 void venus_hfi_delete_device(void *device);

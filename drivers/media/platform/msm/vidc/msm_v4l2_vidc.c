@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -35,7 +35,7 @@
 
 struct msm_vidc_drv *vidc_driver;
 
-uint32_t msm_vidc_pwr_collapse_delay = 2000;
+uint32_t msm_vidc_pwr_collapse_delay = 10000;
 
 static inline struct msm_vidc_inst *get_vidc_inst(struct file *filp, void *fh)
 {
@@ -137,7 +137,7 @@ int msm_v4l2_reqbufs(struct file *file, void *fh,
 {
 	struct msm_vidc_inst *vidc_inst = get_vidc_inst(file, fh);
 	int rc = 0;
-	if (!b->count)
+	if (b->count == 0)
 		rc = msm_vidc_release_buffers(vidc_inst, b->type);
 	if (rc)
 		dprintk(VIDC_WARN,
@@ -294,7 +294,7 @@ static int read_platform_resources(struct msm_vidc_core *core,
 		struct platform_device *pdev)
 {
 	if (!core || !pdev) {
-		dprintk(VIDC_ERR, "%s: Invalid params %p %p\n",
+		dprintk(VIDC_ERR, "%s: Invalid params %pK %pK\n",
 			__func__, core, pdev);
 		return -EINVAL;
 	}
@@ -373,7 +373,7 @@ static ssize_t store_pwr_collapse_delay(struct device *dev,
 	rc = kstrtoul(buf, 0, &val);
 	if (rc)
 		return rc;
-	else if (!val)
+	else if (val == 0)
 		return -EINVAL;
 	msm_vidc_pwr_collapse_delay = val;
 	return count;
@@ -439,12 +439,17 @@ static int msm_vidc_probe(struct platform_device *pdev)
 	struct device *dev;
 	int nr = BASE_DEVICE_NUMBER;
 
+	if (!vidc_driver) {
+		dprintk(VIDC_ERR, "Invalid vidc driver\n");
+		return -EINVAL;
+	}
+
+
 	core = kzalloc(sizeof(*core), GFP_KERNEL);
-	if (!core || !vidc_driver) {
+	if (!core) {
 		dprintk(VIDC_ERR,
 			"Failed to allocate memory for device core\n");
-		rc = -ENOMEM;
-		goto err_no_mem;
+		return -ENOMEM;
 	}
 	rc = msm_vidc_initialize_core(pdev, core);
 	if (rc) {
@@ -476,7 +481,7 @@ static int msm_vidc_probe(struct platform_device *pdev)
 	core->vdev[MSM_VIDC_DECODER].vdev.ioctl_ops = &msm_v4l2_ioctl_ops;
 	core->vdev[MSM_VIDC_DECODER].vdev.vfl_dir = VFL_DIR_M2M;
 	core->vdev[MSM_VIDC_DECODER].type = MSM_VIDC_DECODER;
-	core->vdev[MSM_VIDC_DECODER].vdev.v4l2_dev = &core->v4l2_dev;
+	//core->vdev[MSM_VIDC_DECODER].vdev.v4l2_dev = &core->v4l2_dev;
 	rc = video_register_device(&core->vdev[MSM_VIDC_DECODER].vdev,
 					VFL_TYPE_GRABBER, nr);
 	if (rc) {
@@ -498,7 +503,7 @@ static int msm_vidc_probe(struct platform_device *pdev)
 	core->vdev[MSM_VIDC_ENCODER].vdev.ioctl_ops = &msm_v4l2_ioctl_ops;
 	core->vdev[MSM_VIDC_ENCODER].vdev.vfl_dir = VFL_DIR_M2M;
 	core->vdev[MSM_VIDC_ENCODER].type = MSM_VIDC_ENCODER;
-	core->vdev[MSM_VIDC_ENCODER].vdev.v4l2_dev = &core->v4l2_dev;
+	//core->vdev[MSM_VIDC_ENCODER].vdev.v4l2_dev = &core->v4l2_dev;
 	rc = video_register_device(&core->vdev[MSM_VIDC_ENCODER].vdev,
 				VFL_TYPE_GRABBER, nr + 1);
 	if (rc) {
@@ -572,7 +577,6 @@ err_v4l2_register:
 	sysfs_remove_group(&pdev->dev.kobj, &msm_vidc_core_attr_group);
 err_core_init:
 	kfree(core);
-err_no_mem:
 	return rc;
 }
 
@@ -582,7 +586,7 @@ static int msm_vidc_remove(struct platform_device *pdev)
 	struct msm_vidc_core *core;
 
 	if (!pdev) {
-		dprintk(VIDC_ERR, "%s invalid input %p", __func__, pdev);
+		dprintk(VIDC_ERR, "%s invalid input %pK", __func__, pdev);
 		return -EINVAL;
 	}
 	core = pdev->dev.platform_data;

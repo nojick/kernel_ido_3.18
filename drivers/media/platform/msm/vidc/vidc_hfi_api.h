@@ -114,7 +114,6 @@ enum hal_extradata_id {
 	HAL_EXTRADATA_DIGITAL_ZOOM,
 	HAL_EXTRADATA_LTR_INFO,
 	HAL_EXTRADATA_METADATA_MBI,
-	HAL_EXTRADATA_VQZIP_SEI,
 	HAL_EXTRADATA_MASTERING_DISPLAY_COLOUR_SEI,
 	HAL_EXTRADATA_CONTENT_LIGHT_LEVEL_SEI,
 	HAL_EXTRADATA_VUI_DISPLAY_INFO,
@@ -131,7 +130,8 @@ enum hal_property {
 	HAL_PARAM_FRAME_SIZE,
 	HAL_CONFIG_REALTIME,
 	HAL_PARAM_BUFFER_COUNT_ACTUAL,
-	HAL_PARAM_BUFFER_SIZE_MINIMUM,
+	HAL_PARAM_BUFFER_SIZE_ACTUAL,
+	HAL_PARAM_BUFFER_DISPLAY_HOLD_COUNT_ACTUAL,
 	HAL_PARAM_NAL_STREAM_FORMAT_SELECT,
 	HAL_PARAM_VDEC_OUTPUT_ORDER,
 	HAL_PARAM_VDEC_PICTURE_TYPE_DECODE,
@@ -220,8 +220,8 @@ enum hal_property {
 	HAL_PARAM_VENC_HIER_B_MAX_ENH_LAYERS,
 	HAL_PARAM_VDEC_NON_SECURE_OUTPUT2,
 	HAL_PARAM_VENC_HIER_P_HYBRID_MODE,
-	HAL_PARAM_VENC_CONSTRAINED_INTRA_PRED,
 	HAL_PARAM_VENC_VIDEO_SIGNAL_INFO,
+	HAL_PARAM_VENC_CONSTRAINED_INTRA_PRED,
 };
 
 enum hal_domain {
@@ -252,6 +252,11 @@ enum hal_default_properties {
 	HAL_VIDEO_CONTINUE_DATA_TRANSFER = 0x00000002,
 };
 
+enum hal_hfi_version {
+	HAL_VIDEO_2X,
+	HAL_VIDEO_3X,
+};
+
 enum hal_video_codec {
 	HAL_VIDEO_CODEC_UNKNOWN  = 0x00000000,
 	HAL_VIDEO_CODEC_MVC      = 0x00000001,
@@ -268,8 +273,7 @@ enum hal_video_codec {
 	HAL_VIDEO_CODEC_VP7      = 0x00000800,
 	HAL_VIDEO_CODEC_VP8      = 0x00001000,
 	HAL_VIDEO_CODEC_HEVC     = 0x00002000,
-	HAL_VIDEO_CODEC_VP9      = 0x00004000,
-	HAL_VIDEO_CODEC_HEVC_HYBRID     = 0x80000000,
+	HAL_VIDEO_CODEC_HEVC_HYBRID     = 0x00004000,
 	HAL_UNUSED_CODEC = 0x10000000,
 };
 
@@ -507,22 +511,20 @@ struct hal_frame_rate {
 };
 
 enum hal_uncompressed_format {
-	HAL_COLOR_FORMAT_MONOCHROME     = 0x00000001,
-	HAL_COLOR_FORMAT_NV12           = 0x00000002,
-	HAL_COLOR_FORMAT_NV21           = 0x00000004,
-	HAL_COLOR_FORMAT_NV12_4x4TILE   = 0x00000008,
-	HAL_COLOR_FORMAT_NV21_4x4TILE   = 0x00000010,
-	HAL_COLOR_FORMAT_YUYV           = 0x00000020,
-	HAL_COLOR_FORMAT_YVYU           = 0x00000040,
-	HAL_COLOR_FORMAT_UYVY           = 0x00000080,
-	HAL_COLOR_FORMAT_VYUY           = 0x00000100,
-	HAL_COLOR_FORMAT_RGB565         = 0x00000200,
-	HAL_COLOR_FORMAT_BGR565         = 0x00000400,
-	HAL_COLOR_FORMAT_RGB888         = 0x00000800,
-	HAL_COLOR_FORMAT_BGR888         = 0x00001000,
-	HAL_COLOR_FORMAT_NV12_UBWC      = 0x00002000,
-	HAL_COLOR_FORMAT_NV12_TP10_UBWC = 0x00004000,
-	HAL_UNUSED_COLOR                = 0x10000000,
+	HAL_COLOR_FORMAT_MONOCHROME   = 0x00000001,
+	HAL_COLOR_FORMAT_NV12         = 0x00000002,
+	HAL_COLOR_FORMAT_NV21         = 0x00000004,
+	HAL_COLOR_FORMAT_NV12_4x4TILE = 0x00000008,
+	HAL_COLOR_FORMAT_NV21_4x4TILE = 0x00000010,
+	HAL_COLOR_FORMAT_YUYV         = 0x00000020,
+	HAL_COLOR_FORMAT_YVYU         = 0x00000040,
+	HAL_COLOR_FORMAT_UYVY         = 0x00000080,
+	HAL_COLOR_FORMAT_VYUY         = 0x00000100,
+	HAL_COLOR_FORMAT_RGB565       = 0x00000200,
+	HAL_COLOR_FORMAT_BGR565       = 0x00000400,
+	HAL_COLOR_FORMAT_RGB888       = 0x00000800,
+	HAL_COLOR_FORMAT_BGR888       = 0x00001000,
+	HAL_UNUSED_COLOR              = 0x10000000,
 };
 
 enum hal_ssr_trigger_type {
@@ -583,7 +585,7 @@ struct hal_buffer_count_actual {
 	u32 buffer_count_actual;
 };
 
-struct hal_buffer_size_minimum {
+struct hal_buffer_size_actual {
 	enum hal_buffer buffer_type;
 	u32 buffer_size;
 };
@@ -958,15 +960,13 @@ struct hal_video_signal_info {
 };
 
 enum vidc_resource_id {
-	VIDC_RESOURCE_NONE,
-	VIDC_RESOURCE_OCMEM,
-	VIDC_RESOURCE_VMEM,
-	VIDC_UNUSED_RESOURCE = 0x10000000,
+	VIDC_RESOURCE_OCMEM = 0x00000001,
+	VIDC_UNUSED_RESORUCE = 0x10000000,
 };
 
 struct vidc_resource_hdr {
 	enum vidc_resource_id resource_id;
-	void *resource_handle;
+	u32 resource_handle;
 	u32 size;
 };
 
@@ -1020,9 +1020,18 @@ struct vidc_seq_hdr {
 	u32 seq_hdr_len;
 };
 
+struct hal_fw_info {
+	char version[128];
+	int base_addr;
+	int register_base;
+	int register_size;
+	int irq;
+};
+
 enum hal_flush {
 	HAL_FLUSH_INPUT,
 	HAL_FLUSH_OUTPUT,
+	HAL_FLUSH_OUTPUT2,
 	HAL_FLUSH_ALL,
 	HAL_UNUSED_FLUSH = 0x10000000,
 };
@@ -1293,14 +1302,6 @@ enum msm_vidc_hfi_type {
 	VIDC_HFI_Q6,
 };
 
-enum fw_info {
-	FW_BASE_ADDRESS,
-	FW_REGISTER_BASE,
-	FW_REGISTER_SIZE,
-	FW_IRQ,
-	FW_INFO_MAX,
-};
-
 enum msm_vidc_thermal_level {
 	VIDC_THERMAL_NORMAL = 0,
 	VIDC_THERMAL_LOW,
@@ -1359,7 +1360,6 @@ struct hfi_device {
 	int (*session_load_res)(void *sess);
 	int (*session_release_res)(void *sess);
 	int (*session_start)(void *sess);
-	int (*session_continue)(void *sess);
 	int (*session_stop)(void *sess);
 	int (*session_etb)(void *sess,
 			struct vidc_frame_data *input_frame);
@@ -1383,7 +1383,7 @@ struct hfi_device {
 	int (*load_fw)(void *dev);
 	void (*unload_fw)(void *dev);
 	int (*resurrect_fw)(void *dev);
-	int (*get_fw_info)(void *dev, enum fw_info info);
+	int (*get_fw_info)(void *dev, struct hal_fw_info *fw_info);
 	int (*get_stride_scanline)(int color_fmt, int width,
 		int height,	int *stride, int *scanlines);
 	int (*session_clean)(void *sess);
@@ -1392,6 +1392,7 @@ struct hfi_device {
 	int (*suspend)(void *dev);
 	unsigned long (*get_core_clock_rate)(void *dev);
 	enum hal_default_properties (*get_default_properties)(void *dev);
+	enum hal_hfi_version (*get_version)(void *dev);
 };
 
 typedef void (*hfi_cmd_response_callback) (enum command_response cmd,

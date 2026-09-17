@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <media/msm_vidc.h>
 #define MAX_BUFFER_TYPES 32
+#define IDLE_TIME_WINDOW_SIZE 30
 
 
 struct load_freq_table {
@@ -106,13 +107,6 @@ struct bus_set {
 	u32 count;
 };
 
-enum imem_type {
-	IMEM_NONE,
-	IMEM_OCMEM,
-	IMEM_VMEM,
-	IMEM_MAX,
-};
-
 struct msm_vidc_platform_resources {
 	phys_addr_t firmware_base;
 	phys_addr_t register_base;
@@ -124,16 +118,17 @@ struct msm_vidc_platform_resources {
 	struct addr_set qdss_addr_set;
 	struct iommu_set iommu_group_set;
 	struct buffer_usage_set buffer_usage_set;
-	uint32_t imem_size;
-	enum imem_type imem_type;
+	uint32_t ocmem_size;
 	uint32_t max_load;
 	struct platform_device *pdev;
 	struct regulator_set regulator_set;
 	struct clock_set clock_set;
 	struct bus_set bus_set;
+	bool dynamic_bw_update;
 	bool use_non_secure_pil;
 	bool sw_power_collapsible;
 	bool sys_idle_indicator;
+	uint32_t pm_qos_latency_us;
 	bool thermal_mitigable;
 };
 

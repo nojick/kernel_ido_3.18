@@ -69,6 +69,7 @@
 
 #define HFI_FLUSH_INPUT (HFI_OX_BASE + 0x1)
 #define HFI_FLUSH_OUTPUT (HFI_OX_BASE + 0x2)
+#define HFI_FLUSH_OUTPUT2 (HFI_OX_BASE + 0x3)
 #define HFI_FLUSH_ALL (HFI_OX_BASE + 0x4)
 
 #define HFI_EXTRADATA_NONE					0x00000000
@@ -93,6 +94,7 @@
 #define HFI_EXTRADATA_METADATA_FILLER		0x7FE00002
 
 #define HFI_INDEX_EXTRADATA_INPUT_CROP		0x0700000E
+#define HFI_INDEX_EXTRADATA_DIGITAL_ZOOM	0x07000010
 #define HFI_INDEX_EXTRADATA_ASPECT_RATIO	0x7F100003
 
 struct hfi_buffer_alloc_mode {
@@ -148,8 +150,11 @@ struct hfi_extradata_header {
 	(HFI_PROPERTY_PARAM_OX_START + 0x00A)
 #define  HFI_PROPERTY_PARAM_BUFFER_ALLOC_MODE_SUPPORTED	\
 	(HFI_PROPERTY_PARAM_OX_START + 0x00B)
-#define  HFI_PROPERTY_PARAM_BUFFER_SIZE_MINIMUM			\
+#define  HFI_PROPERTY_PARAM_BUFFER_SIZE_ACTUAL			\
 	(HFI_PROPERTY_PARAM_OX_START + 0x00C)
+#define  HFI_PROPERTY_PARAM_BUFFER_DISPLAY_HOLD_COUNT_ACTUAL	\
+	(HFI_PROPERTY_PARAM_OX_START + 0x00D)
+
 
 #define HFI_PROPERTY_CONFIG_OX_START					\
 	(HFI_DOMAIN_BASE_COMMON + HFI_ARCH_OX_OFFSET + 0x02000)
@@ -214,9 +219,7 @@ struct hfi_extradata_header {
 #define HFI_PROPERTY_PARAM_VDEC_SCS_THRESHOLD \
 	(HFI_PROPERTY_PARAM_VDEC_OX_START + 0x01A)
 #define HFI_PROPERTY_PARAM_VUI_DISPLAY_INFO_EXTRADATA \
-	(HFI_PROPERTY_PARAM_VDEC_OX_START + 0x01B)
-#define HFI_PROPERTY_PARAM_VDEC_VQZIP_SEI_EXTRADATA \
-	(HFI_PROPERTY_PARAM_VDEC_OX_START + 0x001C)
+        (HFI_PROPERTY_PARAM_VDEC_OX_START + 0x01B)
 #define HFI_PROPERTY_PARAM_VDEC_VPX_COLORSPACE_EXTRADATA \
 	(HFI_PROPERTY_PARAM_VDEC_OX_START + 0x001D)
 #define HFI_PROPERTY_PARAM_VDEC_MASTERING_DISPLAY_COLOUR_SEI_EXTRADATA \
@@ -267,9 +270,14 @@ struct hfi_buffer_count_actual {
 	u32 buffer_count_actual;
 };
 
-struct hfi_buffer_size_minimum {
+struct hfi_buffer_size_actual {
 	u32 buffer_type;
 	u32 buffer_size;
+};
+
+struct hfi_buffer_display_hold_count_actual {
+	u32 buffer_type;
+	u32 hold_count;
 };
 
 struct hfi_buffer_requirements {
@@ -382,7 +390,6 @@ struct hfi_uncompressed_plane_actual_constraints_info {
 	(HFI_CMD_SESSION_OX_START + 0x00B)
 #define HFI_CMD_SESSION_RELEASE_RESOURCES	\
 	(HFI_CMD_SESSION_OX_START + 0x00C)
-#define  HFI_CMD_SESSION_CONTINUE  (HFI_CMD_SESSION_OX_START + 0x00D)
 
 #define HFI_MSG_SYS_OX_START			\
 (HFI_DOMAIN_BASE_COMMON + HFI_ARCH_OX_OFFSET + HFI_MSG_START_OFFSET + 0x0000)
@@ -866,16 +873,10 @@ struct hfi_extradata_recovery_point_sei_payload {
 	u32 flag;
 };
 
-struct hfi_cmd_session_continue_packet {
-	u32 size;
-	u32 packet_type;
-	u32 session_id;
-};
-
 struct hal_session {
 	struct list_head list;
 	void *session_id;
-	bool is_decoder;
+	u32 is_decoder;
 	void *device;
 };
 

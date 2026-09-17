@@ -86,8 +86,7 @@
 #define HFI_VIDEO_CODEC_SPARK				0x00000200
 #define HFI_VIDEO_CODEC_VP8				0x00001000
 #define HFI_VIDEO_CODEC_HEVC				0x00002000
-#define HFI_VIDEO_CODEC_VP9				0x00004000
-#define HFI_VIDEO_CODEC_HEVC_HYBRID			0x80000000
+#define HFI_VIDEO_CODEC_HEVC_HYBRID			0x00004000
 
 #define HFI_H264_PROFILE_BASELINE			0x00000001
 #define HFI_H264_PROFILE_MAIN				0x00000002
@@ -494,11 +493,6 @@ struct hfi_intra_refresh {
 	u32 cir_mbs;
 };
 
-struct hfi_3x_intra_refresh {
-	u32 mode;
-	u32 mbs;
-};
-
 struct hfi_idr_period {
 	u32 idr_period;
 };
@@ -539,11 +533,6 @@ struct hfi_multi_stream {
 	u32 enable;
 	u32 width;
 	u32 height;
-};
-
-struct hfi_3x_multi_stream {
-	u32 buffer_type;
-	u32 enable;
 };
 
 struct hfi_multi_view_format {
@@ -655,11 +644,6 @@ struct hfi_h264_vui_timing_info {
 	u32 time_scale;
 };
 
-/* Base Offset for UBWC color formats  */
-#define HFI_COLOR_FORMAT_UBWC_BASE        (0x8000)
-/* Base Offset for 10-bit color formats */
-#define HFI_COLOR_FORMAT_10_BIT_BASE      (0x4000)
-
 #define HFI_COLOR_FORMAT_MONOCHROME			(HFI_COMMON_BASE + 0x1)
 #define HFI_COLOR_FORMAT_NV12				(HFI_COMMON_BASE + 0x2)
 #define HFI_COLOR_FORMAT_NV21				(HFI_COMMON_BASE + 0x3)
@@ -673,20 +657,6 @@ struct hfi_h264_vui_timing_info {
 #define HFI_COLOR_FORMAT_BGR565				(HFI_COMMON_BASE + 0xB)
 #define HFI_COLOR_FORMAT_RGB888				(HFI_COMMON_BASE + 0xC)
 #define HFI_COLOR_FORMAT_BGR888				(HFI_COMMON_BASE + 0xD)
-#define HFI_COLOR_FORMAT_YUV444				(HFI_COMMON_BASE + 0xE)
-#define HFI_COLOR_FORMAT_RGBA8888			(HFI_COMMON_BASE + 0x10)
-
-#define HFI_COLOR_FORMAT_YUV420_TP10					\
-		(HFI_COLOR_FORMAT_10_BIT_BASE + HFI_COLOR_FORMAT_NV12)
-
-#define HFI_COLOR_FORMAT_NV12_UBWC					\
-		(HFI_COLOR_FORMAT_UBWC_BASE + HFI_COLOR_FORMAT_NV12)
-
-#define HFI_COLOR_FORMAT_YUV420_TP10_UBWC				\
-		(HFI_COLOR_FORMAT_UBWC_BASE + HFI_COLOR_FORMAT_YUV420_TP10)
-
-#define  HFI_COLOR_FORMAT_RGBA8888_UBWC					\
-		(HFI_COLOR_FORMAT_UBWC_BASE + HFI_COLOR_FORMAT_RGBA8888)
 
 #define HFI_MAX_MATRIX_COEFFS 9
 #define HFI_MAX_BIAS_COEFFS 3

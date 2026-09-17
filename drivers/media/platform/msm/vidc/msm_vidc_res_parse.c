@@ -46,19 +46,6 @@ fail_read:
 	return 0;
 }
 
-static inline enum imem_type read_imem_type(struct platform_device *pdev)
-{
-	bool is_compatible(char *compat)
-	{
-		return !!of_find_compatible_node(NULL, NULL, compat);
-	}
-
-	return is_compatible("qcom,msm-ocmem") ? IMEM_OCMEM :
-		is_compatible("qcom,msm-vmem") ? IMEM_VMEM :
-						IMEM_NONE;
-
-}
-
 int read_hfi_type(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -72,9 +59,9 @@ int read_hfi_type(struct platform_device *pdev)
 				"Failed to read hfi from device tree\n");
 			goto err_hfi_read;
 		}
-		if (!strcasecmp(hfi_name, "venus"))
+		if (!strcmp(hfi_name, "venus"))
 			rc = VIDC_HFI_VENUS;
-		else if (!strcasecmp(hfi_name, "q6"))
+		else if (!strcmp(hfi_name, "q6"))
 			rc = VIDC_HFI_Q6;
 		else
 			rc = -EINVAL;
@@ -175,7 +162,7 @@ static int msm_vidc_load_reg_table(struct msm_vidc_platform_resources *res)
 	reg_set->count = get_u32_array_num_elements(pdev, "qcom,reg-presets");
 	reg_set->count /=  sizeof(*reg_set->reg_tbl) / sizeof(u32);
 
-	if (!reg_set->count) {
+	if (reg_set->count == 0) {
 		dprintk(VIDC_DBG, "no elements in reg set\n");
 		return rc;
 	}
@@ -222,7 +209,7 @@ static int msm_vidc_load_qdss_table(struct msm_vidc_platform_resources *res)
 					"qcom,qdss-presets");
 	qdss_addr_set->count /= sizeof(*qdss_addr_set->addr_tbl) / sizeof(u32);
 
-	if (!qdss_addr_set->count) {
+	if (qdss_addr_set->count == 0) {
 		dprintk(VIDC_DBG, "no elements in qdss reg set\n");
 		return rc;
 	}
@@ -278,7 +265,7 @@ static int msm_vidc_load_freq_table(struct msm_vidc_platform_resources *res)
 
 	num_elements = get_u32_array_num_elements(pdev, "qcom,load-freq-tbl");
 	num_elements /= sizeof(*res->load_freq_tbl) / sizeof(u32);
-	if (!num_elements) {
+	if (num_elements == 0) {
 		dprintk(VIDC_ERR, "no elements in frequency table\n");
 		return rc;
 	}
@@ -683,9 +670,10 @@ int read_platform_resources_from_dt(
 	res->irq = kres ? kres->start : -1;
 
 	of_property_read_u32(pdev->dev.of_node,
-			"qcom,imem-size", &res->imem_size);
-	res->imem_type = read_imem_type(pdev);
+			"qcom,ocmem-size", &res->ocmem_size);
 
+	res->dynamic_bw_update = of_property_read_bool(pdev->dev.of_node,
+			"qcom,use-dynamic-bw-update");
 	res->sys_idle_indicator = of_property_read_bool(pdev->dev.of_node,
 			"qcom,enable-idle-indicator");
 
@@ -752,6 +740,8 @@ int read_platform_resources_from_dt(
 				"Using fw-bias : %pa", &res->firmware_base);
 	}
 
+	of_property_read_u32(pdev->dev.of_node,
+			"qcom,pm-qos-latency-us", &res->pm_qos_latency_us);
 	res->sw_power_collapsible = of_property_read_bool(pdev->dev.of_node,
 					"qcom,sw-power-collapse");
 	dprintk(VIDC_DBG, "Power collapse supported = %s\n",

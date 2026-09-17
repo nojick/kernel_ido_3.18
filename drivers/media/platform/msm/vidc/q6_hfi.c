@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -41,7 +41,7 @@ static int write_queue(void *info, u8 *packet)
 
 	packet_size_in_words = (*(u32 *)packet) >> 2;
 
-	if (!packet_size_in_words) {
+	if (packet_size_in_words == 0) {
 		dprintk(VIDC_ERR, "Zero packet size\n");
 		return -ENODATA;
 	}
@@ -91,7 +91,7 @@ static int read_queue(void *info, u8 *packet)
 
 	read_ptr = (u32 *)(qinfo->buffer + (qinfo->read_idx << 2));
 	packet_size_in_words = (*read_ptr) >> 2;
-	if (!packet_size_in_words) {
+	if (packet_size_in_words == 0) {
 		dprintk(VIDC_ERR, "Zero packet size\n");
 		return -ENODATA;
 	}
@@ -202,7 +202,7 @@ static int q6_hfi_register_iommu_domains(struct q6_hfi_device *device)
 	struct iommu_info *iommu_map;
 
 	if (!device || !device->res) {
-		dprintk(VIDC_ERR, "Invalid parameter: %p\n", device);
+		dprintk(VIDC_ERR, "Invalid parameter: %pK\n", device);
 		return -EINVAL;
 	}
 
@@ -220,7 +220,7 @@ static int q6_hfi_register_iommu_domains(struct q6_hfi_device *device)
 		domain = iommu_group_get_iommudata(iommu_map->group);
 		if (IS_ERR_OR_NULL(domain)) {
 			dprintk(VIDC_ERR,
-					"Failed to get domain data for group %p\n",
+					"Failed to get domain data for group %pK\n",
 					iommu_map->group);
 			rc = -EINVAL;
 			goto fail_group;
@@ -228,7 +228,7 @@ static int q6_hfi_register_iommu_domains(struct q6_hfi_device *device)
 		iommu_map->domain = msm_find_domain_no(domain);
 		if (iommu_map->domain < 0) {
 			dprintk(VIDC_ERR,
-					"Failed to get domain index for domain %p\n",
+					"Failed to get domain index for domain %pK\n",
 					domain);
 			rc = -EINVAL;
 			goto fail_group;
@@ -254,7 +254,7 @@ static void q6_hfi_deregister_iommu_domains(struct q6_hfi_device *device)
 	int i = 0;
 
 	if (!device || !device->res) {
-		dprintk(VIDC_ERR, "Invalid parameter: %p\n", device);
+		dprintk(VIDC_ERR, "Invalid parameter: %pK\n", device);
 		return;
 	}
 
@@ -325,7 +325,7 @@ static void *q6_hfi_add_device(u32 device_id,
 		goto error_createq;
 	}
 
-	if (!hal_ctxt.dev_count)
+	if (hal_ctxt.dev_count == 0)
 		INIT_LIST_HEAD(&hal_ctxt.dev_head);
 
 	INIT_LIST_HEAD(&hdevice->list);
@@ -347,7 +347,7 @@ static void *q6_hfi_get_device(u32 device_id,
 	int rc = 0;
 
 	if (!callback) {
-		dprintk(VIDC_ERR, "%s Invalid params:  %p\n",
+		dprintk(VIDC_ERR, "%s Invalid params:  %pK\n",
 			__func__, callback);
 		return NULL;
 	}
@@ -568,7 +568,10 @@ static void *q6_hfi_session_init(void *device, void *session_id,
 		return NULL;
 	}
 	new_session->session_id = session_id;
-	new_session->is_decoder = (session_type == HAL_VIDEO_DOMAIN_DECODER);
+	if (session_type == 1)
+		new_session->is_decoder = 0;
+	else if (session_type == 2)
+		new_session->is_decoder = 1;
 	new_session->device = dev;
 
 	q6_hfi_add_apr_hdr(dev, &apr.hdr, sizeof(apr));
@@ -660,7 +663,7 @@ static int q6_hfi_session_clean(void *session)
 		return -EINVAL;
 	}
 	sess_close = session;
-	dprintk(VIDC_DBG, "deleted the session: %p\n",
+	dprintk(VIDC_DBG, "deleted the session: 0x%pK\n",
 			sess_close->session_id);
 	mutex_lock(&((struct q6_hfi_device *)
 			sess_close->device)->session_lock);
@@ -700,7 +703,7 @@ static int q6_hfi_session_set_buffers(void *sess,
 		goto err_create_pkt;
 	}
 
-	dprintk(VIDC_INFO, "set buffers: %#x\n", buffer_info->buffer_type);
+	dprintk(VIDC_INFO, "set buffers: 0x%x\n", buffer_info->buffer_type);
 	rc = apr_send_pkt(dev->apr, (uint32_t *)apr);
 	if (rc != apr->hdr.pkt_size) {
 		dprintk(VIDC_ERR, "%s: apr_send_pkt failed rc: %d\n",
@@ -742,7 +745,7 @@ static int q6_hfi_session_release_buffers(void *sess,
 		goto err_create_pkt;
 	}
 
-	dprintk(VIDC_INFO, "Release buffers: %#x\n", buffer_info->buffer_type);
+	dprintk(VIDC_INFO, "Release buffers: 0x%x\n", buffer_info->buffer_type);
 	rc = apr_send_pkt(dev->apr, (uint32_t *)apr);
 
 	if (rc != apr->hdr.pkt_size) {
@@ -805,7 +808,7 @@ static int q6_hfi_session_etb(void *sess,
 			goto err_create_pkt;
 		}
 		dprintk(VIDC_DBG, "Q DECODER INPUT BUFFER\n");
-		dprintk(VIDC_DBG, "addr = %pa ts = %lld\n",
+		dprintk(VIDC_DBG, "addr = 0x%pa ts = %lld\n",
 			&input_frame->device_addr, input_frame->timestamp);
 		rc = apr_send_pkt(dev->apr, (uint32_t *)&apr);
 		if (rc != apr.hdr.pkt_size) {
@@ -1037,7 +1040,7 @@ static int q6_hfi_session_set_property(void *sess,
 	}
 
 	dev = session->device;
-	dprintk(VIDC_DBG, "in set_prop,with prop id: %#x\n", ptype);
+	dprintk(VIDC_DBG, "in set_prop,with prop id: 0x%x\n", ptype);
 
 	q6_hfi_add_apr_hdr(dev, &apr->hdr, VIDC_IFACEQ_VAR_LARGE_PKT_SIZE);
 
@@ -1178,7 +1181,7 @@ static int q6_hfi_session_get_property(void *sess,
 	case HAL_CONFIG_VENC_TIMESTAMP_SCALE:
 	case HAL_PARAM_VENC_LOW_LATENCY:
 	default:
-		dprintk(VIDC_INFO, "DEFAULT: Calling %#x\n", ptype);
+		dprintk(VIDC_INFO, "DEFAULT: Calling 0x%x\n", ptype);
 		break;
 	}
 	return 0;
@@ -1204,7 +1207,7 @@ static int q6_hfi_iommu_attach(struct q6_hfi_device *device)
 	struct iommu_info *iommu_map;
 
 	if (!device || !device->res) {
-		dprintk(VIDC_ERR, "Invalid parameter: %p\n", device);
+		dprintk(VIDC_ERR, "Invalid parameter: %pK\n", device);
 		return -EINVAL;
 	}
 
@@ -1219,7 +1222,7 @@ static int q6_hfi_iommu_attach(struct q6_hfi_device *device)
 			rc = PTR_ERR(domain) ?: -EINVAL;
 			break;
 		}
-		dprintk(VIDC_DBG, "Attaching domain(id:%d) %p to group %p\n",
+		dprintk(VIDC_DBG, "Attaching domain(id:%d) %pK to group %pK\n",
 				iommu_map->domain, domain, group);
 		rc = iommu_attach_group(domain, group);
 		if (rc) {
@@ -1250,7 +1253,7 @@ static void q6_hfi_iommu_detach(struct q6_hfi_device *device)
 	int i;
 
 	if (!device || !device->res) {
-		dprintk(VIDC_ERR, "Invalid parameter: %p\n", device);
+		dprintk(VIDC_ERR, "Invalid parameter: %pK\n", device);
 		return;
 	}
 
@@ -1379,7 +1382,7 @@ int q6_hfi_initialize(struct hfi_device *hdev, u32 device_id,
 	int rc = 0;
 
 	if (!hdev || !res || !callback) {
-		dprintk(VIDC_ERR, "Invalid params: %p %p %p\n",
+		dprintk(VIDC_ERR, "Invalid params: %pK %pK %pK\n",
 				hdev, res, callback);
 		rc = -EINVAL;
 		goto err_hfi_init;
