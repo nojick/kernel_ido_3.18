@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -280,27 +280,28 @@ int create_pkt_cmd_sys_set_resource(
 
 	pkt->packet_type = HFI_CMD_SYS_SET_RESOURCE;
 	pkt->size = sizeof(struct hfi_cmd_sys_set_resource_packet);
-	pkt->resource_handle = resource_hdr->resource_handle;
+	pkt->resource_handle = hash32_ptr(resource_hdr->resource_handle);
 
 	switch (resource_hdr->resource_id) {
 	case VIDC_RESOURCE_OCMEM:
+	case VIDC_RESOURCE_VMEM:
 	{
 		struct hfi_resource_ocmem *hfioc_mem =
 			(struct hfi_resource_ocmem *)
 			&pkt->rg_resource_data[0];
-		struct ocmem_buf *ocmem =
-			(struct ocmem_buf *) resource_value;
+
+		phys_addr_t imem_addr = (phys_addr_t)resource_value;
 
 		pkt->resource_type = HFI_RESOURCE_OCMEM;
 		pkt->size += sizeof(struct hfi_resource_ocmem) - sizeof(u32);
-		hfioc_mem->size = (u32)ocmem->len;
-		hfioc_mem->mem = (u32)ocmem->addr;
+		hfioc_mem->size = (u32)resource_hdr->size;
+		hfioc_mem->mem = imem_addr;
 		break;
 	}
 	default:
 		dprintk(VIDC_ERR, "Invalid resource_id %d\n",
 					resource_hdr->resource_id);
-		rc = -EINVAL;
+		rc = -ENOTSUPP;
 	}
 
 	return rc;
@@ -316,8 +317,17 @@ int create_pkt_cmd_sys_release_resource(
 
 	pkt->size = sizeof(struct hfi_cmd_sys_release_resource_packet);
 	pkt->packet_type = HFI_CMD_SYS_RELEASE_RESOURCE;
-	pkt->resource_type = resource_hdr->resource_id;
-	pkt->resource_handle = resource_hdr->resource_handle;
+	pkt->resource_handle = hash32_ptr(resource_hdr->resource_handle);
+
+	switch (resource_hdr->resource_id) {
+	case VIDC_RESOURCE_OCMEM:
+		pkt->resource_type = HFI_RESOURCE_OCMEM;
+		break;
+	default:
+		dprintk(VIDC_ERR, "Invalid resource_id %d\n",
+					resource_hdr->resource_id);
+		rc = -ENOTSUPP;
+	}
 
 	return rc;
 }
@@ -1323,7 +1333,7 @@ int create_pkt_cmd_session_set_property(
 			break;
 		default:
 			dprintk(VIDC_ERR,
-					"Invalid Rate control setting: 0x%pK\n",
+					"Invalid Rate control setting: 0x%p\n",
 					pdata);
 			break;
 		}
@@ -1982,7 +1992,7 @@ int create_pkt_ssr_cmd(enum hal_ssr_trigger_type type,
 		struct hfi_cmd_sys_test_ssr_packet *pkt)
 {
 	if (!pkt) {
-		dprintk(VIDC_ERR, "Invalid params, device: %pK\n", pkt);
+		dprintk(VIDC_ERR, "Invalid params, device: %p\n", pkt);
 		return -EINVAL;
 	}
 	pkt->size = sizeof(struct hfi_cmd_sys_test_ssr_packet);
@@ -1995,7 +2005,7 @@ int create_pkt_cmd_sys_image_version(
 		struct hfi_cmd_sys_get_property_packet *pkt)
 {
 	if (!pkt) {
-		dprintk(VIDC_ERR, "%s invalid param :%pK\n", __func__, pkt);
+		dprintk(VIDC_ERR, "%s invalid param :%p\n", __func__, pkt);
 		return -EINVAL;
 	}
 	pkt->size = sizeof(struct hfi_cmd_sys_get_property_packet);
