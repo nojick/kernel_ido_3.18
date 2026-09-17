@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, 2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -213,7 +213,8 @@
 #define HFI_BUFFER_INTERNAL_PERSIST_1		(HFI_COMMON_BASE + 0x5)
 
 #define  HFI_BITDEPTH_8				(HFI_COMMON_BASE + 0x0)
-#define  HFI_BITDEPTH_10			(HFI_COMMON_BASE + 0x1)
+#define  HFI_BITDEPTH_9				(HFI_COMMON_BASE + 0x1)
+#define  HFI_BITDEPTH_10			(HFI_COMMON_BASE + 0x2)
 
 #define HFI_VENC_PERFMODE_MAX_QUALITY	0x1
 #define HFI_VENC_PERFMODE_POWER_SAVE	0x2
@@ -272,6 +273,8 @@ struct hfi_buffer_info {
 	(HFI_PROPERTY_PARAM_COMMON_START + 0x00E)
 #define HFI_PROPERTY_PARAM_MVC_BUFFER_LAYOUT \
 	(HFI_PROPERTY_PARAM_COMMON_START + 0x00F)
+#define  HFI_PROPERTY_PARAM_MAX_SESSIONS_SUPPORTED	    \
+	(HFI_PROPERTY_PARAM_COMMON_START + 0x010)
 
 #define HFI_PROPERTY_CONFIG_COMMON_START				\
 	(HFI_DOMAIN_BASE_COMMON + HFI_ARCH_COMMON_OFFSET + 0x2000)
@@ -288,6 +291,11 @@ struct hfi_buffer_info {
 	(HFI_PROPERTY_PARAM_VDEC_COMMON_START + 0x003)
 #define  HFI_PROPERTY_PARAM_VDEC_PIXEL_BITDEPTH				\
 	(HFI_PROPERTY_PARAM_VDEC_COMMON_START + 0x007)
+#define  HFI_PROPERTY_PARAM_VDEC_PIC_STRUCT				\
+	(HFI_PROPERTY_PARAM_VDEC_COMMON_START + 0x009)
+#define  HFI_PROPERTY_PARAM_VDEC_COLOUR_SPACE				\
+	(HFI_PROPERTY_PARAM_VDEC_COMMON_START + 0x00A)
+
 
 #define HFI_PROPERTY_CONFIG_VDEC_COMMON_START				\
 	(HFI_DOMAIN_BASE_VDEC + HFI_ARCH_COMMON_OFFSET + 0x4000)
@@ -332,7 +340,7 @@ struct hfi_buffer_info {
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x014)
 #define  HFI_PROPERTY_PARAM_VENC_H264_PPS_ID               \
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x015)
-#define HFI_PROPERTY_PARAM_VENC_H264_GENERATE_AUDNAL	\
+#define HFI_PROPERTY_PARAM_VENC_GENERATE_AUDNAL	\
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x016)
 #define HFI_PROPERTY_PARAM_VENC_ASPECT_RATIO			\
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x017)
@@ -354,8 +362,12 @@ struct hfi_buffer_info {
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x020)
 #define HFI_PROPERTY_PARAM_VENC_H264_VUI_BITSTREAM_RESTRC \
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x021)
+#define HFI_PROPERTY_PARAM_VENC_LOW_LATENCY_MODE	\
+	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x022)
 #define HFI_PROPERTY_PARAM_VENC_PRESERVE_TEXT_QUALITY \
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x023)
+#define HFI_PROPERTY_PARAM_VENC_H264_8X8_TRANSFORM \
+	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x025)
 #define HFI_PROPERTY_PARAM_VENC_HIER_P_MAX_NUM_ENH_LAYER	\
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x026)
 #define HFI_PROPERTY_PARAM_VENC_DISABLE_RC_TIMESTAMP \
@@ -370,6 +382,12 @@ struct hfi_buffer_info {
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x02C)
 #define  HFI_PROPERTY_PARAM_VENC_HIER_P_HYBRID_MODE	\
 	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x02F)
+#define  HFI_PROPERTY_PARAM_VENC_BITRATE_TYPE		\
+	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x031)
+#define  HFI_PROPERTY_PARAM_VENC_VQZIP_SEI_TYPE		\
+	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x033)
+#define  HFI_PROPERTY_PARAM_VENC_IFRAMESIZE			\
+	(HFI_PROPERTY_PARAM_VENC_COMMON_START + 0x034)
 
 #define HFI_PROPERTY_CONFIG_VENC_COMMON_START				\
 	(HFI_DOMAIN_BASE_VENC + HFI_ARCH_COMMON_OFFSET + 0x6000)
@@ -400,17 +418,29 @@ struct hfi_buffer_info {
 	(HFI_PROPERTY_CONFIG_VENC_COMMON_START + 0x00C)
 #define  HFI_PROPERTY_CONFIG_VENC_PERF_MODE			\
 	(HFI_PROPERTY_CONFIG_VENC_COMMON_START + 0x00E)
+#define HFI_PROPERTY_CONFIG_VENC_BASELAYER_PRIORITYID		\
+	(HFI_PROPERTY_CONFIG_VENC_COMMON_START + 0x00F)
 
 #define HFI_PROPERTY_CONFIG_VPE_COMMON_START				\
 	(HFI_DOMAIN_BASE_VPE + HFI_ARCH_COMMON_OFFSET + 0x8000)
+#define  HFI_PROPERTY_CONFIG_VENC_BLUR_FRAME_SIZE		\
+	(HFI_PROPERTY_CONFIG_COMMON_START + 0x010)
 #define HFI_PROPERTY_CONFIG_VPE_DEINTERLACE				\
 	(HFI_PROPERTY_CONFIG_VPE_COMMON_START + 0x001)
 #define HFI_PROPERTY_CONFIG_VPE_OPERATIONS				\
 	(HFI_PROPERTY_CONFIG_VPE_COMMON_START + 0x002)
 
+struct hfi_pic_struct {
+	u32 progressive_only;
+};
+
 struct hfi_bitrate {
 	u32 bit_rate;
 	u32 layer_id;
+};
+
+struct hfi_colour_space {
+	u32 colour_space;
 };
 
 #define HFI_CAPABILITY_FRAME_WIDTH			(HFI_COMMON_BASE + 0x1)
@@ -429,6 +459,7 @@ struct hfi_bitrate {
 #define HFI_CAPABILITY_HIER_B_NUM_ENH_LAYERS	(HFI_COMMON_BASE + 0x13)
 #define HFI_CAPABILITY_LCU_SIZE				(HFI_COMMON_BASE + 0x14)
 #define HFI_CAPABILITY_HIER_P_HYBRID_NUM_ENH_LAYERS	(HFI_COMMON_BASE + 0x15)
+#define HFI_CAPABILITY_MBS_PER_SECOND_POWERSAVE		(HFI_COMMON_BASE + 0x16)
 
 struct hfi_capability_supported {
 	u32 capability_type;
@@ -458,7 +489,7 @@ struct hfi_debug_config {
 };
 
 struct hfi_enable {
-	int enable;
+	u32 enable;
 };
 
 #define HFI_H264_DB_MODE_DISABLE			(HFI_COMMON_BASE + 0x1)
@@ -468,8 +499,8 @@ struct hfi_enable {
 
 struct hfi_h264_db_control {
 	u32 mode;
-	int slice_alpha_offset;
-	int slice_beta_offset;
+	u32 slice_alpha_offset;
+	u32 slice_beta_offset;
 };
 
 #define HFI_H264_ENTROPY_CAVLC				(HFI_COMMON_BASE + 0x1)
@@ -714,6 +745,7 @@ struct hfi_picture_type {
 #define HFI_STATISTICS_MODE_DEFAULT 0x10
 #define HFI_STATISTICS_MODE_1 0x11
 #define HFI_STATISTICS_MODE_2 0x12
+#define HFI_STATISTICS_MODE_3 0x13
 
 struct hfi_uncompressed_format_select {
 	u32 buffer_type;
@@ -727,7 +759,7 @@ struct hfi_uncompressed_format_supported {
 };
 
 struct hfi_uncompressed_plane_actual {
-	int actual_stride;
+	u32 actual_stride;
 	u32 actual_plane_buffer_height;
 };
 
@@ -760,10 +792,18 @@ struct hfi_properties_supported {
 	u32 rg_properties[1];
 };
 
+struct hfi_max_sessions_supported {
+	u32 max_sessions;
+};
+
 struct hfi_vpe_color_space_conversion {
 	u32 csc_matrix[HFI_MAX_MATRIX_COEFFS];
 	u32 csc_bias[HFI_MAX_BIAS_COEFFS];
 	u32 csc_limit[HFI_MAX_LIMIT_COEFFS];
+};
+
+struct hfi_scs_threshold {
+	u32 threshold_value;
 };
 
 #define HFI_ROTATE_NONE					(HFI_COMMON_BASE + 0x1)
@@ -809,12 +849,12 @@ struct hfi_venc_config_advanced {
 	u8 hw_mode;
 	u8 low_delay_enforce;
 	u8 worker_vppsg_delay;
-	int close_gop;
-	int h264_constrain_intra_pred;
-	int h264_transform_8x8_flag;
-	int mpeg4_qpel_enable;
-	int multi_refp_en;
-	int qmatrix_en;
+	u32 close_gop;
+	u32 h264_constrain_intra_pred;
+	u32 h264_transform_8x8_flag;
+	u32 mpeg4_qpel_enable;
+	u32 multi_refp_en;
+	u32 qmatrix_en;
 	u8 vpp_info_packet_mode;
 	u8 ref_tile_mode;
 	u8 bitstream_flush_mode;
@@ -844,10 +884,20 @@ struct hfi_codec_mask_supported {
 struct hfi_seq_header_info {
 	u32 max_hader_len;
 };
+
 struct hfi_aspect_ratio {
 	u32 aspect_width;
 	u32 aspect_height;
 };
+
+#define HFI_IFRAME_SIZE_DEFAULT			(HFI_COMMON_BASE + 0x1)
+#define HFI_IFRAME_SIZE_MEDIUM			(HFI_COMMON_BASE + 0x2)
+#define HFI_IFRAME_SIZE_HIGH			(HFI_COMMON_BASE + 0x3)
+#define HFI_IFRAME_SIZE_UNLIMITED		(HFI_COMMON_BASE + 0x4)
+struct hfi_iframe_size {
+	u32 type;
+};
+
 #define HFI_MVC_BUFFER_LAYOUT_TOP_BOTTOM  (0)
 #define HFI_MVC_BUFFER_LAYOUT_SIDEBYSIDE  (1)
 #define HFI_MVC_BUFFER_LAYOUT_SEQ         (2)
@@ -922,6 +972,11 @@ struct vidc_hal_session_cmd_pkt {
 	u32 size;
 	u32 packet_type;
 	u32 session_id;
+};
+
+struct hfi_packet_header {
+	u32 size;
+	u32 packet_type;
 };
 
 struct hfi_cmd_sys_init_packet {

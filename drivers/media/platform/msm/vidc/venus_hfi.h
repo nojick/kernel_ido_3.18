@@ -17,6 +17,7 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include "vmem/vmem.h"
 #include "vidc_hfi_api.h"
@@ -46,7 +47,7 @@
 #define VIDC_IFACEQ_DFLT_QHDR				0x01010000
 
 #define VIDC_MAX_NAME_LENGTH 64
-
+#define VIDC_MAX_PC_SKIP_COUNT 10
 struct hfi_queue_table_header {
 	u32 qtbl_version;
 	u32 qtbl_size;
@@ -224,6 +225,7 @@ struct venus_hfi_device {
 	u32 clk_freq;
 	u32 last_packet_type;
 	unsigned long clk_bitrate;
+	unsigned long scaled_rate;
 	struct msm_vidc_gov_data bus_vote;
 	bool power_enabled;
 	struct mutex lock;
@@ -245,6 +247,8 @@ struct venus_hfi_device {
 	struct hfi_packetization_ops *pkt_ops;
 	enum hfi_packetization_type packetization_type;
 	struct msm_vidc_cb_info *response_pkt;
+	struct pm_qos_request qos;
+	unsigned int skip_pc_count;
 	struct msm_vidc_capability *sys_init_capabilities;
 };
 

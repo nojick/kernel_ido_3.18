@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -43,6 +43,7 @@
 #define DEFAULT_WIDTH 1920
 #define MIN_SUPPORTED_WIDTH 32
 #define MIN_SUPPORTED_HEIGHT 32
+#define DEFAULT_FPS 15
 
 /* Maintains the number of FTB's between each FBD over a window */
 #define DCVS_FTB_WINDOW 32
@@ -75,7 +76,6 @@ enum vidc_ports {
 
 enum vidc_core_state {
 	VIDC_CORE_UNINIT = 0,
-	VIDC_CORE_LOADED,
 	VIDC_CORE_INIT,
 	VIDC_CORE_INIT_DONE,
 	VIDC_CORE_INVALID
@@ -148,6 +148,8 @@ struct msm_vidc_drv {
 	int num_cores;
 	struct dentry *debugfs_root;
 	int thermal_level;
+	u32 platform_version;
+	u32 capability_version;
 };
 
 struct msm_video_device {
@@ -200,7 +202,7 @@ struct dcvs_stats {
 	bool is_clock_scaled;
 	int etb_counter;
 	bool is_power_save_mode;
-	bool is_additional_buff_added;
+	u32 supported_codecs;
 };
 
 struct profile_data {
@@ -254,7 +256,7 @@ struct msm_vidc_inst {
 	void *session;
 	struct session_prop prop;
 	enum instance_state state;
-	struct msm_vidc_format *fmts[MAX_PORT_NUM];
+	struct msm_vidc_format fmts[MAX_PORT_NUM];
 	struct buf_queue bufq[MAX_PORT_NUM];
 	struct msm_vidc_list pendingq;
 	struct msm_vidc_list scratchbufs;
@@ -272,6 +274,7 @@ struct msm_vidc_inst {
 	bool in_reconfig;
 	u32 reconfig_width;
 	u32 reconfig_height;
+	u32 seqchanged_count;
 	struct dentry *debugfs_root;
 	void *priv;
 	struct msm_vidc_debug debug;
@@ -281,13 +284,16 @@ struct msm_vidc_inst {
 	struct msm_vidc_capability capability;
 	u32 buffer_size_limit;
 	enum buffer_mode_type buffer_mode_set[MAX_PORT_NUM];
-	bool map_output_buffer;
 	atomic_t seq_hdr_reqs;
 	struct v4l2_ctrl **ctrls;
 	bool dcvs_mode;
 	enum msm_vidc_pixel_depth bit_depth;
 	struct kref kref;
 	unsigned long instant_bitrate;
+	u32 buffers_held_in_driver;
+	atomic_t in_flush;
+	u32 pic_struct;
+	u32 colour_space;
 };
 
 extern struct msm_vidc_drv *vidc_driver;

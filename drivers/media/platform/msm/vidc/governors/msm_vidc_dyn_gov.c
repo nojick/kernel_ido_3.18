@@ -23,6 +23,7 @@ module_param(debug, bool, 0644);
 enum governor_mode {
 	GOVERNOR_DDR,
 	GOVERNOR_VMEM,
+	GOVERNOR_VMEM_PLUS,
 };
 
 struct governor {
@@ -49,9 +50,18 @@ const struct {
 	.height = 720,
 };
 
+/*
+ * These are hardcoded AB values that the governor votes for in certain
+ * situations, where a certain bus frequency is desired.  It isn't exactly
+ * scalable since different platforms have different bus widths, but we'll
+ * deal with that in the future.
+ */
+const unsigned long NOMINAL_BW_MBPS = 6000 /* ideally 320 Mhz */,
+	SVS_BW_MBPS = 2000 /* ideally 100 Mhz */;
+
 /* converts Mbps to bps (the "b" part can be bits or bytes based on context) */
-#define kbps(__mbps) ((__mbps) * U64_C(1000))
-#define bps(__mbps) (kbps(__mbps) * U64_C(1000))
+#define kbps(__mbps) ((__mbps) * 1000)
+#define bps(__mbps) (kbps(__mbps) * 1000)
 
 #define GENERATE_SCENARIO_PROFILE(__average, __worst) {                        \
 	[SCENARIO_AVERAGE] = (__average),                                      \
@@ -168,8 +178,7 @@ static struct lut const *__lut(int width, int height)
 			return &LUT[c];
 	} while (++c < ARRAY_SIZE(LUT));
 
-	WARN(true, "Shouldn't be here, LUT possibly corrupted?\n");
-	return NULL; /* impossible */
+	return &LUT[ARRAY_SIZE(LUT) - 1];
 }
 
 static fp_t __compression_ratio(struct lut const *entry, int bpp,
@@ -191,7 +200,7 @@ static fp_t __compression_ratio(struct lut const *entry, int bpp,
 struct dump {
 	char *key;
 	char *format;
-	int64_t val;
+	size_t val;
 };
 
 static void __dump(struct dump dump[], int len)
@@ -214,12 +223,12 @@ static void __dump(struct dump dump[], int len)
 				snprintf(formatted_line, sizeof(formatted_line),
 						format_line, dump[c].val);
 			} else {
-				int64_t integer_part, fractional_part;
+				size_t integer_part, fractional_part;
 
 				integer_part = fp_int(dump[c].val);
 				fractional_part = fp_frac(dump[c].val);
 				snprintf(formatted_line, sizeof(formatted_line),
-						"    %-35s: %lld + %lld/%lld\n",
+						"    %-35s: %zd + %zd/%zd\n",
 						dump[c].key, integer_part,
 						fractional_part,
 						fp_frac_base());
@@ -266,6 +275,36 @@ static int __bpp(enum hal_uncompressed_format f)
 	}
 }
 
+static unsigned long __calculate_vmem_plus_ab(struct vidc_bus_vote_data *d)
+{
+	unsigned long i = 0, vmem_plus = 0;
+
+	if (!d->imem_ab_tbl || !d->imem_ab_tbl_size) {
+		vmem_plus = 1; /* Vote for the min ab value */
+		goto exit;
+	}
+
+	/* Pick up vmem frequency based on venus core frequency */
+	for (i = 0; i < d->imem_ab_tbl_size; i++) {
+		if (d->imem_ab_tbl[i].core_freq == d->core_freq) {
+			vmem_plus = d->imem_ab_tbl[i].imem_ab;
+			break;
+		}
+	}
+
+	/* Incase we get an unsupported freq throw a warning
+	 * and set ab to the minimum value. */
+	if (!vmem_plus) {
+		vmem_plus = 1;
+		dprintk(VIDC_WARN,
+			"could not calculate vmem ab value due to core freq mismatch\n");
+		WARN_ON(VIDC_DBG_WARN_ENABLE);
+	}
+
+exit:
+	return vmem_plus;
+}
+
 static unsigned long __calculate_decoder(struct vidc_bus_vote_data *d,
 		enum governor_mode gm) {
 	/*
@@ -299,6 +338,8 @@ static unsigned long __calculate_decoder(struct vidc_bus_vote_data *d,
 			recon_write, opb_read, opb_write, dpb_read, dpb_write,
 			total;
 	} ddr, vmem;
+
+	unsigned long ret = 0;
 
 	/* Decoder parameters setup */
 	scenario = SCENARIO_WORST;
@@ -435,6 +476,14 @@ static unsigned long __calculate_decoder(struct vidc_bus_vote_data *d,
 		vmem.opb_read + vmem.opb_write +
 		vmem.dpb_read + vmem.dpb_write;
 
+	/*
+	 * Attempt to force VMEM to a certain frequency for 4K
+	 */
+	if (width * height * fps >= 3840 * 2160 * 60)
+		vmem.total = FP_INT(NOMINAL_BW_MBPS);
+	else if (width * height * fps >= 3840 * 2160 * 30)
+		vmem.total = FP_INT(SVS_BW_MBPS);
+
 	/* ........................................ for DDR */
 	ddr.vsp_read = fp_div(fp_mult(FP_INT(bitrate),
 				vsp_read_factor), FP_INT(8));
@@ -553,11 +602,24 @@ static unsigned long __calculate_decoder(struct vidc_bus_vote_data *d,
 		{"DPB read", DUMP_FP_FMT, vmem.dpb_read},
 		{"DPB write", DUMP_FP_FMT, vmem.dpb_write},
 		};
-
 		__dump(dump, ARRAY_SIZE(dump));
 	}
 
-	return kbps(fp_round((gm == GOVERNOR_DDR ? &ddr : &vmem)->total));
+	switch (gm) {
+	case GOVERNOR_DDR:
+		ret = kbps(fp_round(ddr.total));
+		break;
+	case GOVERNOR_VMEM:
+		ret = kbps(fp_round(vmem.total));
+		break;
+	case GOVERNOR_VMEM_PLUS:
+		ret = __calculate_vmem_plus_ab(d);
+		break;
+	default:
+		dprintk(VIDC_ERR, "%s - Unknown governor\n", __func__);
+	}
+
+	return ret;
 }
 
 static unsigned long __calculate_encoder(struct vidc_bus_vote_data *d,
@@ -604,6 +666,8 @@ static unsigned long __calculate_encoder(struct vidc_bus_vote_data *d,
 			original_write, dpb_read, dpb_write, total;
 	} ddr, vmem;
 
+	unsigned long ret = 0;
+
 	/* Encoder Parameters setup */
 	scenario = SCENARIO_WORST;
 
@@ -622,11 +686,7 @@ static unsigned long __calculate_encoder(struct vidc_bus_vote_data *d,
 	original_compression_enabled = __ubwc(original_color_format);
 
 	two_stage_encoding = false;
-	if (d->power_mode == VIDC_POWER_LOW)
-		low_power = true;
-	else
-		low_power = false;
-
+	low_power = d->power_mode == VIDC_POWER_LOW;
 	b_frames_enabled = false;
 
 	dpb_compression_factor = !dpb_compression_enabled ? FP_ONE :
@@ -680,9 +740,9 @@ static unsigned long __calculate_encoder(struct vidc_bus_vote_data *d,
 				line_buffer_size_per_lcu),
 			FP_INT(1024));
 	line_buffer_bw = fp_mult(line_buffer_size,
-			FP_INT((height / lcu_size /
-					(two_stage_encoding ? 2 : 1) - 1) *
-					fps / 1000));
+			fp_div(FP_INT((height / lcu_size /
+				(two_stage_encoding ? 2 : 1) - 1) * fps),
+				FP_INT(1000)));
 
 	collocated_mv_per_lcu = lcu_size == 16 ? 16 : 64;
 	max_transaction_size = 256;
@@ -793,7 +853,7 @@ static unsigned long __calculate_encoder(struct vidc_bus_vote_data *d,
 	vmem.dpb_read = FP_ZERO;
 	if (gop == GOP_IPPP) {
 		fp_t temp = fp_mult(one_frame_bw_dpb,
-				search_window_factor_bw_p);
+			FP_INT(search_window_factor_bw_p * available_vmem_p));
 		temp = fp_div(temp, FP_INT(3));
 
 		vmem.dpb_read = temp;
@@ -854,6 +914,13 @@ static unsigned long __calculate_encoder(struct vidc_bus_vote_data *d,
 		vmem.line_buffer_read + vmem.line_buffer_write +
 		vmem.original_read + vmem.original_write +
 		vmem.dpb_read + vmem.dpb_write;
+
+	/*
+	 * When in low power mode, attempt to force the VMEM clocks a certain
+	 * frequency that DCVS would prefer
+	 */
+	if (width * height >= 3840 * 2160 && low_power)
+		vmem.total = FP_INT(NOMINAL_BW_MBPS);
 
 	if (debug) {
 		struct dump dump[] = {
@@ -943,7 +1010,21 @@ static unsigned long __calculate_encoder(struct vidc_bus_vote_data *d,
 		__dump(dump, ARRAY_SIZE(dump));
 	}
 
-	return kbps(fp_round((gm == GOVERNOR_DDR ? &ddr : &vmem)->total));
+	switch (gm) {
+	case GOVERNOR_DDR:
+		ret = kbps(fp_round(ddr.total));
+		break;
+	case GOVERNOR_VMEM:
+		ret = kbps(fp_round(vmem.total));
+		break;
+	case GOVERNOR_VMEM_PLUS:
+		ret = __calculate_vmem_plus_ab(d);
+		break;
+	default:
+		dprintk(VIDC_ERR, "%s - Unknown governor\n", __func__);
+	}
+
+	return ret;
 }
 
 static unsigned long __calculate(struct vidc_bus_vote_data *d,
@@ -986,7 +1067,7 @@ static int __get_target_freq(struct devfreq *dev, unsigned long *freq,
 	for (c = 0; c < vidc_data->data_count; ++c)
 		ab_kbps += __calculate(&vidc_data->data[c], gov->mode);
 
-	*freq = ab_kbps;
+	*freq = clamp(ab_kbps, dev->min_freq, dev->max_freq ?: UINT_MAX);
 exit:
 	return 0;
 }
@@ -1015,7 +1096,7 @@ static struct governor governors[] = {
 	{
 		.mode = GOVERNOR_DDR,
 		.devfreq_gov = {
-			.name = "msm-vidc-bw-ddr",
+			.name = "msm-vidc-ddr",
 			.get_target_freq = __get_target_freq,
 			.event_handler = __event_handler,
 		},
@@ -1023,12 +1104,19 @@ static struct governor governors[] = {
 	{
 		.mode = GOVERNOR_VMEM,
 		.devfreq_gov = {
-			.name = "msm-vidc-bw-vmem",
+			.name = "msm-vidc-vmem",
 			.get_target_freq = __get_target_freq,
 			.event_handler = __event_handler,
 		},
 	},
-
+	{
+		.mode = GOVERNOR_VMEM_PLUS,
+		.devfreq_gov = {
+			.name = "msm-vidc-vmem+",
+			.get_target_freq = __get_target_freq,
+			.event_handler = __event_handler,
+		},
+	},
 };
 
 static int __init msm_vidc_bw_gov_init(void)

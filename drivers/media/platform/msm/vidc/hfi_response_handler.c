@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/bitops.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
@@ -91,9 +92,10 @@ static enum msm_vidc_pixel_depth get_hal_pixel_depth(u32 hfi_bit_depth)
 {
 	switch (hfi_bit_depth) {
 	case HFI_BITDEPTH_8: return MSM_VIDC_BIT_DEPTH_8;
+	case HFI_BITDEPTH_9:
 	case HFI_BITDEPTH_10: return MSM_VIDC_BIT_DEPTH_10;
 	}
-	dprintk(VIDC_ERR, "Unsupported bit depth\n");
+	dprintk(VIDC_ERR, "Unsupported bit depth: %d\n", hfi_bit_depth);
 	return MSM_VIDC_BIT_DEPTH_UNSUPPORTED;
 }
 
@@ -106,8 +108,14 @@ static int hfi_process_sess_evt_seq_changed(u32 device_id,
 	struct hfi_frame_size *frame_sz;
 	struct hfi_profile_level *profile_level;
 	struct hfi_bit_depth *pixel_depth;
+	struct hfi_pic_struct *pic_struct;
 	u8 *data_ptr;
 	int prop_id;
+	enum msm_vidc_pixel_depth luma_bit_depth, chroma_bit_depth;
+	struct hfi_colour_space *colour_info;
+
+	 /* Initialize pic_struct to unknown as default */
+	event_notify.pic_struct = MSM_VIDC_PIC_STRUCT_UNKNOWN;
 
 	if (sizeof(struct hfi_msg_event_notify_packet) > pkt->size) {
 		dprintk(VIDC_ERR,
@@ -161,17 +169,62 @@ static int hfi_process_sess_evt_seq_changed(u32 device_id,
 			case HFI_PROPERTY_PARAM_VDEC_PIXEL_BITDEPTH:
 				data_ptr = data_ptr + sizeof(u32);
 				pixel_depth = (struct hfi_bit_depth *) data_ptr;
-				event_notify.bit_depth =
-					get_hal_pixel_depth(
-						pixel_depth->bit_depth);
-				dprintk(VIDC_DBG, "bitdepth: %d\n",
-					pixel_depth->bit_depth);
+				/*
+				 * Luma and chroma can have different bitdepths.
+				 * Driver should rely on luma and chroma
+				 * bitdepth for determining output bitdepth
+				 * type.
+				 *
+				 * pixel_depth->bitdepth will include luma
+				 * bitdepth info in bits 0..15 and chroma
+				 * bitdept in bits 16..31.
+				 */
+				luma_bit_depth = get_hal_pixel_depth(
+					pixel_depth->bit_depth &
+					GENMASK(15, 0));
+				chroma_bit_depth = get_hal_pixel_depth(
+					(pixel_depth->bit_depth &
+					GENMASK(31, 16)) >> 16);
+				if (luma_bit_depth == MSM_VIDC_BIT_DEPTH_10 ||
+					chroma_bit_depth ==
+						MSM_VIDC_BIT_DEPTH_10)
+					event_notify.bit_depth =
+						MSM_VIDC_BIT_DEPTH_10;
+				else
+					event_notify.bit_depth = luma_bit_depth;
+				dprintk(VIDC_DBG,
+					"bitdepth(%d), luma_bit_depth(%d), chroma_bit_depth(%d)\n",
+					event_notify.bit_depth, luma_bit_depth,
+					chroma_bit_depth);
 				data_ptr += sizeof(struct hfi_bit_depth);
+				break;
+			case HFI_PROPERTY_PARAM_VDEC_PIC_STRUCT:
+				data_ptr = data_ptr + sizeof(u32);
+				pic_struct = (struct hfi_pic_struct *) data_ptr;
+				event_notify.pic_struct =
+					pic_struct->progressive_only;
+				dprintk(VIDC_DBG,
+					"Progressive only flag: %d\n",
+						pic_struct->progressive_only);
+				data_ptr +=
+					sizeof(struct hfi_pic_struct);
+				break;
+			case HFI_PROPERTY_PARAM_VDEC_COLOUR_SPACE:
+				data_ptr = data_ptr + sizeof(u32);
+				colour_info =
+					(struct hfi_colour_space *) data_ptr;
+				event_notify.colour_space =
+					colour_info->colour_space;
+				dprintk(VIDC_DBG,
+					"Colour space value is: %d\n",
+						colour_info->colour_space);
+				data_ptr +=
+					sizeof(struct hfi_colour_space);
 				break;
 			default:
 				dprintk(VIDC_ERR,
-						"%s cmd: %#x not supported\n",
-							__func__, prop_id);
+					"%s cmd: %#x not supported\n",
+					__func__, prop_id);
 				break;
 			}
 			num_properties_changed--;
@@ -266,9 +319,10 @@ static int hfi_process_session_error(u32 device_id,
 }
 
 static int hfi_process_event_notify(u32 device_id,
-		struct hfi_msg_event_notify_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_event_notify_packet *pkt = _pkt;
 	dprintk(VIDC_DBG, "Received: EVENT_NOTIFY\n");
 
 	if (pkt->size < sizeof(struct hfi_msg_event_notify_packet)) {
@@ -307,9 +361,10 @@ static int hfi_process_event_notify(u32 device_id,
 }
 
 static int hfi_process_sys_init_done(u32 device_id,
-		struct hfi_msg_sys_init_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_sys_init_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 	enum vidc_status status = VIDC_ERR_NONE;
 
@@ -346,9 +401,10 @@ err_no_prop:
 }
 
 static int hfi_process_sys_rel_resource_done(u32 device_id,
-		struct hfi_msg_sys_release_resource_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_sys_release_resource_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 	enum vidc_status status = VIDC_ERR_NONE;
 	u32 pkt_size;
@@ -428,7 +484,9 @@ enum hal_capability get_hal_cap_type(u32 capability_type)
 	case HFI_CAPABILITY_HIER_P_HYBRID_NUM_ENH_LAYERS:
 		hal_cap = HAL_CAPABILITY_HIER_P_HYBRID_NUM_ENH_LAYERS;
 		break;
-
+	case HFI_CAPABILITY_MBS_PER_SECOND_POWERSAVE:
+		hal_cap = HAL_CAPABILITY_MBS_PER_SECOND_POWER_SAVE;
+		break;
 	default:
 		dprintk(VIDC_DBG, "%s: unknown capablity %#x\n",
 			__func__, capability_type);
@@ -499,6 +557,9 @@ static inline void copy_cap_prop(
 	case HFI_CAPABILITY_HIER_P_HYBRID_NUM_ENH_LAYERS:
 		out = &capability->hier_p_hybrid;
 		break;
+	case HFI_CAPABILITY_MBS_PER_SECOND_POWERSAVE:
+		out = &capability->mbs_per_sec_power_save;
+		break;
 	default:
 		dprintk(VIDC_DBG, "%s: unknown capablity %#x\n",
 			__func__, in->capability_type);
@@ -521,6 +582,7 @@ static int hfi_fill_codec_info(u8 *data_ptr,
 	u32 codecs = 0, codec_count = 0, size = 0;
 	struct msm_vidc_capability *capability;
 	u32 prop_id = *((u32 *)data_ptr);
+	u8 *orig_data_ptr = data_ptr;
 
 	if (prop_id ==  HFI_PROPERTY_PARAM_CODEC_SUPPORTED) {
 		struct hfi_codec_supported *prop;
@@ -547,6 +609,11 @@ static int hfi_fill_codec_info(u8 *data_ptr,
 				vidc_get_hal_codec((1 << i) & codecs);
 			capability->domain =
 				vidc_get_hal_domain(HFI_VIDEO_DOMAIN_DECODER);
+			if (codec_count == VIDC_MAX_DECODE_SESSIONS) {
+				dprintk(VIDC_ERR,
+					"Max supported decoder sessions reached");
+				break;
+			}
 		}
 	}
 	codecs = sys_init_done->enc_codec_supported;
@@ -558,9 +625,26 @@ static int hfi_fill_codec_info(u8 *data_ptr,
 				vidc_get_hal_codec((1 << i) & codecs);
 			capability->domain =
 				vidc_get_hal_domain(HFI_VIDEO_DOMAIN_ENCODER);
+			if (codec_count == VIDC_MAX_SESSIONS) {
+				dprintk(VIDC_ERR,
+					"Max supported sessions reached");
+				break;
+			}
 		}
 	}
 	sys_init_done->codec_count = codec_count;
+
+	prop_id = *((u32 *)(orig_data_ptr + size));
+	if (prop_id == HFI_PROPERTY_PARAM_MAX_SESSIONS_SUPPORTED) {
+		struct hfi_max_sessions_supported *prop =
+			(struct hfi_max_sessions_supported *)
+			(orig_data_ptr + size + sizeof(u32));
+
+		sys_init_done->max_sessions_supported = prop->max_sessions;
+		size += sizeof(struct hfi_max_sessions_supported) + sizeof(u32);
+		dprintk(VIDC_DBG, "max_sessions_supported %d\n",
+				prop->max_sessions);
+	}
 	return size;
 }
 
@@ -900,7 +984,7 @@ static enum vidc_status hfi_parse_init_done_properties(
 		}
 		default:
 			dprintk(VIDC_DBG,
-				"%s: default case - data_ptr %p, prop_id 0x%x\n",
+				"%s: default case - data_ptr %pK, prop_id 0x%x\n",
 				__func__, data_ptr, prop_id);
 			break;
 		}
@@ -1000,7 +1084,7 @@ static void hfi_process_sess_get_prop_profile_level(
 	dprintk(VIDC_DBG, "Entered %s\n", __func__);
 	if (!prop) {
 		dprintk(VIDC_ERR,
-			"hal_process_sess_get_profile_level: bad_prop: %p\n",
+			"hal_process_sess_get_profile_level: bad_prop: %pK\n",
 			prop);
 		return;
 	}
@@ -1031,7 +1115,7 @@ static void hfi_process_sess_get_prop_buf_req(
 
 	if (!prop) {
 		dprintk(VIDC_ERR,
-			"hal_process_sess_get_prop_buf_req: bad_prop: %p\n",
+			"hal_process_sess_get_prop_buf_req: bad_prop: %pK\n",
 			prop);
 		return;
 	}
@@ -1143,9 +1227,10 @@ static void hfi_process_sess_get_prop_buf_req(
 }
 
 static int hfi_process_session_prop_info(u32 device_id,
-		struct hfi_msg_session_property_info_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_session_property_info_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 	struct hfi_profile_level profile_level = {0};
 	enum hal_h264_entropy entropy;
@@ -1218,9 +1303,10 @@ static int hfi_process_session_prop_info(u32 device_id,
 }
 
 static int hfi_process_session_init_done(u32 device_id,
-		struct hfi_msg_sys_session_init_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_sys_session_init_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 	struct vidc_hal_session_init_done session_init_done = { {0} };
 
@@ -1252,9 +1338,10 @@ static int hfi_process_session_init_done(u32 device_id,
 }
 
 static int hfi_process_session_load_res_done(u32 device_id,
-		struct hfi_msg_session_load_resources_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_session_load_resources_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 	dprintk(VIDC_DBG, "RECEIVED: SESSION_LOAD_RESOURCES_DONE[%#x]\n",
 		pkt->session_id);
@@ -1281,9 +1368,10 @@ static int hfi_process_session_load_res_done(u32 device_id,
 }
 
 static int hfi_process_session_flush_done(u32 device_id,
-		struct hfi_msg_session_flush_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_session_flush_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 
 	dprintk(VIDC_DBG, "RECEIVED: SESSION_FLUSH_DONE[%#x]\n",
@@ -1301,6 +1389,22 @@ static int hfi_process_session_flush_done(u32 device_id,
 	cmd_done.status = hfi_map_err_status(pkt->error_type);
 	cmd_done.size = sizeof(u32);
 
+	switch (pkt->flush_type) {
+	case HFI_FLUSH_OUTPUT:
+		cmd_done.data.flush_type = HAL_FLUSH_OUTPUT;
+		break;
+	case HFI_FLUSH_INPUT:
+		cmd_done.data.flush_type = HAL_FLUSH_INPUT;
+		break;
+	case HFI_FLUSH_ALL:
+		cmd_done.data.flush_type = HAL_FLUSH_ALL;
+		break;
+	default:
+		dprintk(VIDC_ERR,
+				"%s: invalid flush type!", __func__);
+		return -EINVAL;
+	}
+
 	*info = (struct msm_vidc_cb_info) {
 		.response_type =  HAL_SESSION_FLUSH_DONE,
 		.response.cmd = cmd_done,
@@ -1310,9 +1414,10 @@ static int hfi_process_session_flush_done(u32 device_id,
 }
 
 static int hfi_process_session_etb_done(u32 device_id,
-		struct hfi_msg_session_empty_buffer_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_session_empty_buffer_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_data_done data_done = {0};
 	struct hfi_picture_type *hfi_picture_type = NULL;
 
@@ -1361,9 +1466,10 @@ static int hfi_process_session_etb_done(u32 device_id,
 }
 
 static int hfi_process_session_ftb_done(
-		u32 device_id, struct vidc_hal_msg_pkt_hdr *msg_hdr,
+		u32 device_id, void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct vidc_hal_msg_pkt_hdr *msg_hdr = _pkt;
 	struct msm_vidc_cb_data_done data_done = {0};
 	bool is_decoder = false, is_encoder = false;
 
@@ -1488,9 +1594,10 @@ static int hfi_process_session_ftb_done(
 }
 
 static int hfi_process_session_start_done(u32 device_id,
-		struct hfi_msg_session_start_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_session_start_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 
 	dprintk(VIDC_DBG, "RECEIVED: SESSION_START_DONE[%#x]\n",
@@ -1516,9 +1623,10 @@ static int hfi_process_session_start_done(u32 device_id,
 }
 
 static int hfi_process_session_stop_done(u32 device_id,
-		struct hfi_msg_session_stop_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_session_stop_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 
 	dprintk(VIDC_DBG, "RECEIVED: SESSION_STOP_DONE[%#x]\n",
@@ -1545,9 +1653,10 @@ static int hfi_process_session_stop_done(u32 device_id,
 }
 
 static int hfi_process_session_rel_res_done(u32 device_id,
-		struct hfi_msg_session_release_resources_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_session_release_resources_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 
 	dprintk(VIDC_DBG, "RECEIVED: SESSION_RELEASE_RESOURCES_DONE[%#x]\n",
@@ -1574,9 +1683,10 @@ static int hfi_process_session_rel_res_done(u32 device_id,
 }
 
 static int hfi_process_session_rel_buf_done(u32 device_id,
-		struct hfi_msg_session_release_buffers_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_session_release_buffers_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 
 	if (!pkt || pkt->size <
@@ -1609,9 +1719,10 @@ static int hfi_process_session_rel_buf_done(u32 device_id,
 }
 
 static int hfi_process_session_end_done(u32 device_id,
-		struct hfi_msg_sys_session_end_done_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_sys_session_end_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 
 	dprintk(VIDC_DBG, "RECEIVED: SESSION_END_DONE[%#x]\n", pkt->session_id);
@@ -1636,9 +1747,10 @@ static int hfi_process_session_end_done(u32 device_id,
 }
 
 static int hfi_process_session_abort_done(u32 device_id,
-	struct hfi_msg_sys_session_abort_done_packet *pkt,
+	void *_pkt,
 	struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_sys_session_abort_done_packet *pkt = _pkt;
 	struct msm_vidc_cb_cmd_done cmd_done = {0};
 
 	dprintk(VIDC_DBG, "RECEIVED: SESSION_ABORT_DONE[%#x]\n",
@@ -1743,9 +1855,10 @@ static void hfi_process_sys_get_prop_image_version(
 }
 
 static int hfi_process_sys_property_info(u32 device_id,
-		struct hfi_msg_sys_property_info_packet *pkt,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
+	struct hfi_msg_sys_property_info_packet *pkt = _pkt;
 	if (!pkt) {
 		dprintk(VIDC_ERR, "%s: invalid param\n", __func__);
 		return -EINVAL;
@@ -1766,7 +1879,6 @@ static int hfi_process_sys_property_info(u32 device_id,
 		*info = (struct msm_vidc_cb_info) {
 			.response_type =  HAL_RESPONSE_UNUSED,
 		};
-
 		return 0;
 	default:
 		dprintk(VIDC_DBG,
@@ -1777,19 +1889,8 @@ static int hfi_process_sys_property_info(u32 device_id,
 
 }
 
-static int hfi_process_sys_pc_prep_done(u32 device_id,
-		struct vidc_hal_msg_pkt_hdr *msg_hdr,
-		struct msm_vidc_cb_info *info)
-{
-	*info = (struct msm_vidc_cb_info) {
-		.response_type =  HAL_SYS_PC_PREP_DONE,
-	};
-
-	return 0;
-}
-
 static int hfi_process_ignore(u32 device_id,
-		struct vidc_hal_msg_pkt_hdr *msg_hdr,
+		void *_pkt,
 		struct msm_vidc_cb_info *info)
 {
 	*info = (struct msm_vidc_cb_info) {
@@ -1864,9 +1965,6 @@ int hfi_process_msg_packet(u32 device_id, struct vidc_hal_msg_pkt_hdr *msg_hdr,
 	case HFI_MSG_SYS_SESSION_ABORT_DONE:
 		pkt_func = (pkt_func_def)hfi_process_session_abort_done;
 		break;
-	case HFI_MSG_SYS_PC_PREP_DONE:
-		pkt_func = (pkt_func_def)hfi_process_sys_pc_prep_done;
-		break;
 	case HFI_MSG_SESSION_SYNC_DONE:
 		pkt_func = (pkt_func_def)hfi_process_ignore;
 		break;
@@ -1876,5 +1974,6 @@ int hfi_process_msg_packet(u32 device_id, struct vidc_hal_msg_pkt_hdr *msg_hdr,
 		break;
 	}
 
-	return pkt_func ? pkt_func(device_id, msg_hdr, info) : -ENOTSUPP;
+	return pkt_func ?
+		pkt_func(device_id, (void *)msg_hdr, info) : -ENOTSUPP;
 }
