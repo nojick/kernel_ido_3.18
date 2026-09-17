@@ -3087,7 +3087,6 @@ static void venus_hfi_pm_handler(struct work_struct *work)
 	if (device->skip_pc_count >= VIDC_MAX_PC_SKIP_COUNT) {
 		dprintk(VIDC_WARN, "Failed to PC for %d times\n",
 				device->skip_pc_count);
-		device->skip_pc_count = 0;
 		__process_fatal_error(device);
 		return;
 	}
