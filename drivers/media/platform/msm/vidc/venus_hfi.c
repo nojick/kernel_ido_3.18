@@ -1483,12 +1483,12 @@ static int __iface_cmdq_write_relaxed(struct venus_hfi_device *device,
 	}
 
 	__sim_modify_cmd_packet((u8 *)pkt, device);
-	if (__resume(device)) {
-		dprintk(VIDC_ERR, "%s: Power on failed\n", __func__);
-		goto err_q_write;
-	}
-
 	if (!__write_queue(q_info, (u8 *)pkt, requires_interrupt)) {
+		if (__resume(device)) {
+			dprintk(VIDC_ERR, "%s: Power on failed\n", __func__);
+			goto err_q_write;
+		}
+
 		if (device->res->sw_power_collapsible) {
 			dprintk(VIDC_DBG,
 				"Cancel and queue delayed work again\n");
