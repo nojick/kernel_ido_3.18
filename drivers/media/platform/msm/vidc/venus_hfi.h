@@ -46,7 +46,7 @@
 #define VIDC_IFACEQ_DFLT_QHDR				0x01010000
 
 #define VIDC_MAX_NAME_LENGTH 64
-#define VIDC_MAX_PC_SKIP_COUNT 4
+
 struct hfi_queue_table_header {
 	u32 qtbl_version;
 	u32 qtbl_size;
@@ -245,7 +245,6 @@ struct venus_hfi_device {
 	struct hfi_packetization_ops *pkt_ops;
 	enum hfi_packetization_type packetization_type;
 	struct msm_vidc_cb_info *response_pkt;
-	unsigned int skip_pc_count;
 	struct msm_vidc_capability *sys_init_capabilities;
 };
 
