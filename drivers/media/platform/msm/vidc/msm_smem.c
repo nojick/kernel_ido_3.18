@@ -102,7 +102,6 @@ static int get_device_address(struct smem_client *smem_client,
 			dprintk(VIDC_ERR,
 				"Mapping failed with rc(%d), expected rc(%d)\n",
 				rc, table->nents);
-			rc = -ENOMEM;
 			goto mem_map_sg_failed;
 		}
 		if (table->sgl) {
