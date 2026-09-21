@@ -23,7 +23,6 @@
 struct mem_pool {
 	struct mutex pool_mutex;
 	unsigned long *bitmap;
-	struct gen_pool *gpool;
 	unsigned long nr_pages;
 	phys_addr_t paddr;
 	unsigned long size;
