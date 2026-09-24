@@ -184,6 +184,46 @@
 			};
 		};
 	};
+
+	bosch@18 {
+		compatible = "bosch,bma2x2";
+		reg = <0x18>;
+		pinctrl-names = "default","sleep";
+		pinctrl-0 = <&bma2x2_int1_default &bma2x2_int2_default>;
+		pinctrl-1 = <&bma2x2_int1_sleep &bma2x2_int2_sleep>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <112 0x2002>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		bosch,init-interval = <200>;
+		bosch,place = <6>;
+		bosch,gpio-int1 = <&msmgpio 112 0x2002>;
+		bosch,gpio-int2 = <&msmgpio 114 0x2002>;
+	};
+
+	liteon@23 {
+	        compatible = "ltr,ltr559";
+		reg = <0x23>;
+		pinctrl-names = "default","sleep";
+		pinctrl-0 = <&ltr559_default>;
+		pinctrl-1 = <&ltr559_sleep>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <113 0x2>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		ltr,irq-gpio = <&msmgpio 113 0x2>;
+		ltr,ps-threshold = <45>;
+		ltr,ps-hysteresis-threshold = <30>;
+		ltr,als-polling-time = <200>;
+	};
+
+	yamaha@2e {/* Magnetic field sensor */
+		compatible = "yamaha,yas537";
+		reg = <0x2e>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		yas,position = <0>;
+	};
 };
 
 &i2c_4 {
@@ -411,6 +451,84 @@
 		bias-pull-down;
 	};
 
+	bma2x2_int1_pin {
+		bma2x2_int1_default: int1_default {
+			mux {
+				pins = "gpio112";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio112";
+				drive-dtrength = <6>;
+				bias-pull-up;
+			};
+		};
+	bma2x2_int1_sleep: int1_sleep {
+			mux {
+				pins = "gpio112";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio112";
+				drive-strength = <2>;
+				bias-pull-down; /* NO pull */
+			};
+		};
+	};
+
+	bma2x2_int2_pin {
+		bma2x2_int2_default: int2_default {
+			mux {
+				pins = "gpio114";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio114";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
+	bma2x2_int2_sleep: int2_sleep {
+		mux {
+				pins = "gpio114";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio114";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
+
+	ltr559_int_pin {
+		ltr559_default: ltr559_default {
+			mux {
+				pins = "gpio113";
+				function = "gpio";
+			};
+		config {
+				pins = "gpio113";
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
+		ltr559_sleep: ltr559_sleep {
+			mux {
+				pins = "gpio113";
+				function = "gpio";
+			};
+			config {
+				pins = "gpio113";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+	};
 };
 
 &mdss_dsi0 {
