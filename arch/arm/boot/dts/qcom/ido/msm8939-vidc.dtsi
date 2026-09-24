@@ -16,11 +16,8 @@
 		reg = <0x01d00000 0xff000>;
 		interrupts = <0 44 0>;
 		qcom,hfi = "venus";
-		qcom,hfi-version = "3xx";
-		//qcom,use-non-secure-pil;
 		qcom,slave-side-cp;
 		qcom,firmware-name = "venus";
-		qcom,enable-idle-indicator;
 		venus-supply = <&gdsc_venus>;
 		venus-core0-supply = <&gdsc_venus_core0>;
 		venus-core1-supply = <&gdsc_venus_core1>;
@@ -32,7 +29,24 @@
 		clock-names = "core_clk", "core0_clk", "core1_clk", "iface_clk", "bus_clk";
 		qcom,clock-configs = <0x1 0x0 0x0 0x0 0x0>;
 		qcom,sw-power-collapse;
-		qcom,allowed-clock-rates = <266670000 228570000 180000000 133330000>;
+		qcom,load-freq-tbl =
+			<489600 266670000 0x0c000000>, /* HEVC  decoder 1080p 60fps  */
+			<489600 266670000 0x030fcfff>, /* Legacy decoder 1080p 60fps  */
+			<489600 266670000 0x01000414>, /* Encoder turbo (wfd) */
+			<244800 133330000 0x0c000000>, /* HEVC decoder 1080p 30fps   */
+			<244800 133330000 0x030ccfff>, /* Legacy decoder 1080p 30fps   */
+			<244800 200000000 0x00030000>, /* VC1 decoder 1080p 30fps  */
+			<244800 200000000 0x01000414>, /* Legacy encoder 1080p 30fps   */
+			<220800 133330000 0x0c000000>, /* HEVC  decoder 720p 60fps  */
+			<220800 133330000 0x030fcfff>, /* Legacy decoder 720p 60fps  */
+			<108000 133330000 0x0c000000>, /* HEVC decoder 720p 30fps   */
+			<108000 133330000 0x030fcfff>, /* Legacy decoder 720p 30fps   */
+			<108000 200000000 0x01000414>, /* Legacy encoder 720p 30fps   */
+			<72000 133330000 0x0c000000>, /* HEVC decoder VGA 60fps   */
+			<72000 133330000 0x030fcfff>, /* Legacy decoder VGA 60fps   */
+			<36000 133330000 0x0c000000>, /* HEVC VGA 30 fps  */
+			<36000 133330000 0x030fcfff>, /* Legacy decoder VGA 30 fps  */
+			<36000 133330000 0x01000414>; /* Legacy encoder VGA 30 fps   */
 
 		qcom,reg-presets = <0xE0020 0x0aaaaaaa>,
 			<0xE0024 0x0aaaaaaa>,
@@ -44,29 +58,10 @@
 			<0x9180000 0x1000>,
 			<0x9181000 0x1000>;
 		qcom,max-hw-load = <489600>; /* 1080p @ 30 + 1080p @ 30 */
-
-		qcom,clock-freq-tbl {
-			qcom,profile-enc {
-			qcom,codec-mask = <0x55555555>;
-			qcom,cycles-per-mb = <545>;
-			qcom,low-power-mode-factor = <65536>;
-			};
-		qcom,profile-dec {
-			qcom,codec-mask = <0xffffffff>;
-			qcom,cycles-per-mb = <466>;
-			qcom,low-power-mode-factor = <65536>;
-			};
-		qcom,profile-vc1dec {
-			qcom,codec-mask = <0x00030000>;
-			qcom,cycles-per-mb = <734>;
-			qcom,low-power-mode-factor = <65536>;
-			};
-		};
-
 		qcom,vidc-iommu-domains {
 			qcom,domain-ns {
 				qcom,vidc-domain-phandle = <&venus_domain_ns>;
-				qcom,vidc-buffer-types = <0x7ff>, <0x800>;
+				qcom,vidc-buffer-types = <0xfff>;
 			};
 			qcom,domain-sec-bs {
 				qcom,vidc-domain-phandle = <&venus_domain_sec_bitstream>;
@@ -98,46 +93,6 @@
 			qcom,bus-slave = <MSM_BUS_SLAVE_EBI_CH0>;
 			qcom,bus-governor = "performance";
 			qcom,bus-range-kbps = <1 1000>;
-		};
-
-		venus-ddr-gov {
-			compatible = "qcom,msm-vidc,governor,table";
-			name = "venus-ddr-gov";
-			status = "ok";
-			qcom,bus-freq-table {
-			
-			qcom,profile-enc {
-				qcom,codec-mask = <0x55555555>;
-				qcom,load-busfreq-tbl =
-				<244800 841000>,   /* 1080p30E   */
-				<216000 740000>,   /* 720p60E    */
-				<194400 680000>,   /* FWVGA120E  */
-				<144000 496000>,   /* VGA120E    */
-				<108000 370000>,   /* 720p30E    */
-				<97200  340000>,   /* FWVGA60E   */
-				<48600  170000>,   /* FWVGA30E   */
-				<72000  248000>,   /* VGA60E     */
-				<36000  124000>,   /* VGA30E     */
-				<18000  70000>,    /* QVGA60E    */
-				<9000   35000>,    /* QVGA30E    */
-				<0      0>;
-			};
-			qcom,profile-dec {
-				qcom,codec-mask = <0xffffffff>;
-				qcom,load-busfreq-tbl =
-				<244800 605000>,   /* 1080p30D   */
-				<216000 540000>,   /* 720p60D    */
-				<194400 484000>,   /* FWVGA120D  */
-				<144000 360000>,   /* VGA120D    */
-				<108000 270000>,   /* 720p30D    */
-				<97200  242000>,   /* FWVGA60D   */
-				<48600  121000>,   /* FWVGA30D   */
-				<72000  180000>,   /* VGA60D     */
-				<36000  90000>,    /* VGA30D     */
-				<18000  45000>,    /* HVGA30D    */
-				<0      0>;
-				};
-			};
 		};
 	};
 };
