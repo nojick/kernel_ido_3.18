@@ -614,7 +614,7 @@
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
 	qcom,cont-splash-enabled;
 };
-
+#if 0
 &pm8916_mpps {
 	mpp@a000 { /* MPP 1 */
 		/* VDD_PX */
@@ -641,7 +641,7 @@
 		status = "okay";
 	};
 };
-
+#endif
 &spmi_bus {
 	pm8916@0 {
 		qcom,leds@a100 {
