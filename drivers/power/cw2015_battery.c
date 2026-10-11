@@ -785,7 +785,6 @@ static int rk_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = cw_bat->capacity;
 		break;
-
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = cw_bat->status;
 		break;
@@ -820,11 +819,9 @@ static void rk_battery_external_power_changed(struct power_supply *psy)
 	rk_bat_update_status(cw_bat);
 }
 
-
 static enum power_supply_property rk_battery_properties[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_STATUS,
-
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW,
@@ -1104,12 +1101,15 @@ err_irq_gpio_req:
 }
 #endif
 
+extern int battery_type_id ;
 static int cw_bat_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct cw_bat_platform_data *pdata = client->dev.platform_data;
 	struct cw_battery *cw_bat;
 	int ret;
 	int loop = 0;
+
+	pr_debug("\ncw2015/cw2013 driver v1.2 probe start, battery_type_id is %d\n", battery_type_id);
 
 	cw_bat = kzalloc(sizeof(struct cw_battery), GFP_KERNEL);
 	if (!cw_bat) {
@@ -1134,6 +1134,23 @@ static int cw_bat_probe(struct i2c_client *client, const struct i2c_device_id *i
 	if (!pdata) {
 		dev_err(&client->dev, "Invalid pdata\n");
 		return -EINVAL;
+	}
+
+	pr_info("%s: battery_type_id = %d\n", __func__, battery_type_id);
+	if (battery_type_id == 0) {
+		pdata->cw_bat_config_info  = config_info_desai ;
+	} else if (battery_type_id == 1) {
+		pdata->cw_bat_config_info  = config_info_feimaotui ;
+
+	} else if (battery_type_id == 2) {
+		pdata->cw_bat_config_info  = config_info_guanyu ;
+
+	} else if (battery_type_id == 3) {
+		pdata->cw_bat_config_info  = config_info_xinwangda;
+
+	} else {
+		pdata->cw_bat_config_info  = config_info;
+
 	}
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {

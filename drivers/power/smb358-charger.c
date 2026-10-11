@@ -190,7 +190,6 @@
 
 #define BATTERY_FCC 4000
 
-int Chg_Full_Flag = false;
 int pre_usb_current_ma = -EINVAL;
 bool thermal = false;
 bool recovery = false;
@@ -722,8 +721,9 @@ static int smb358_charging_disable(struct smb358_charger *chip,
 	int rc = 0;
 	int disabled;
 
-	if (disable == true)
+	if (disable == true) {
 		pre_usb_current_ma = -EINVAL;
+	}
 	disabled = chip->charging_disabled_status;
 
 	pr_debug("reason = %d requested_disable = %d disabled_status = %d\n",
@@ -920,7 +920,7 @@ static int smb358_get_prop_batt_status(struct smb358_charger *chip)
 	u8 reg = 0;
 
 	rc = smb358_read_reg(chip, STATUS_C_REG, &reg);
-	printk("XXX::smb358_get_prop_batt_status:reg=0x%x\r\n", reg);
+	pr_debug("XXX::smb358_get_prop_batt_status:reg=0x%x\r\n", reg);
 	if (rc) {
 		dev_err(chip->dev, "Couldn't read STAT_C rc = %d\n", rc);
 		return POWER_SUPPLY_STATUS_UNKNOWN;
@@ -928,7 +928,7 @@ static int smb358_get_prop_batt_status(struct smb358_charger *chip)
 
 	dev_dbg(chip->dev, "%s: STATUS_C_REG=%x\n", __func__, reg);
 
-		if ((chip->batt_full) && (true == Chg_Full_Flag))
+		if ((chip->batt_full))
 		return POWER_SUPPLY_STATUS_FULL;
 
 	if ((reg & STATUS_C_CHARGING_MASK) &&
@@ -984,7 +984,7 @@ static int get_prop_current_now(struct smb358_charger *chip)
 	} else {
 		pr_debug("No BMS supply registered return 0\n");
 	}
-	return 0;
+	return 1000;
 }
 
 static int smb358_get_prop_charge_type(struct smb358_charger *chip)
@@ -1031,7 +1031,7 @@ static int smb358_get_prop_batt_health(struct smb358_charger *chip)
 	}
 	else
 		ret.intval = POWER_SUPPLY_HEALTH_GOOD;
-
+		pr_err("battery health is %d\n", ret.intval);
 	return ret.intval;
 }
 
@@ -1057,21 +1057,23 @@ static int smb358_get_prop_batt_temp(struct smb358_charger *chip)
 	return (int)results.physical;
 }
 
+#define SMB358_DEFAULT_BATT_VOLTAGE 4000
 static int
 smb358_get_prop_battery_voltage_now(struct smb358_charger *chip)
 {
-	int rc = 0;
-	struct qpnp_vadc_result results;
 
-	if (!chip->vadc_dev || !chip->pmic_vbat_sns)
-		return 0;
+	union power_supply_propval ret = {0, };
 
-	rc = qpnp_vadc_read(chip->vadc_dev, VBAT_SNS, &results);
-	if (rc) {
-		pr_err("Unable to read vbat rc=%d\n", rc);
-		return 0;
+	if (!cw2015_psy)
+		cw2015_psy = power_supply_get_by_name("rk-bat");
+	if (cw2015_psy) {
+		cw2015_psy->get_property(cw2015_psy,
+				POWER_SUPPLY_PROP_VOLTAGE_NOW, &ret);
+		pr_err("POWER_SUPPLY_PROP_VOLTAGE_NOW IS:%d\n", ret.intval);
+		return ret.intval;
 	}
-	return results.physical;
+	pr_debug("Couldn't get bms_psy, return default capacity\n");
+	return SMB358_DEFAULT_BATT_VOLTAGE;
 }
 
 static int __smb358_path_suspend(struct smb358_charger *chip, bool suspend)
@@ -1133,18 +1135,18 @@ static int smb358_set_usb_chg_current(struct smb358_charger *chip,
 		return 0;
 	}
 
-	if (recovery != true && curr_ma == pre_usb_current_ma)
+	if (recovery != true && curr_ma == pre_usb_current_ma) {
 		return 0;
-
-	recovery = false;
+}
+		recovery = false;
 
 	if (thermal == false) {
 		current_ma = curr_ma;
 		pre_usb_current_ma = curr_ma;
-		printk("current ma1 is %d\n", current_ma);
+		pr_debug("current ma1 is %d\n", current_ma);
 	} else {
 		current_ma = min(curr_ma, chip->thermal_mitigation[chip->therm_lvl_sel]);
-		printk("current ma2 is %d\n", current_ma);
+		pr_debug("current ma2 is %d\n", current_ma);
 	}
 	if (current_ma < USB3_MIN_CURRENT_MA && current_ma != 2)
 		current_ma = USB2_MIN_CURRENT_MA;
@@ -1265,15 +1267,15 @@ static int smb358_set_appropriate_current(struct smb358_charger *chip,
 				} else
 					thermal = true;
 	} else {
-		printk("Not effective thermal levels\n");
-		printk("therm_ma is %d\n", therm_ma);
+		pr_debug("Not effective thermal levels\n");
+		pr_debug("therm_ma is %d\n", therm_ma);
 	}
 
 
 	therm_ma = min(therm_ma, chip->psy_usb_ma);
-		printk("therm_ma is %d\n", therm_ma);
-		printk("chip->psy_usb_ma is %d\n", chip->psy_usb_ma);
-	printk("thermal limited charging current to %d\n", therm_ma);
+		pr_debug("therm_ma is %d\n", therm_ma);
+		pr_debug("chip->psy_usb_ma is %d\n", chip->psy_usb_ma);
+	pr_debug("thermal limited charging current to %d\n", therm_ma);
 
 	smb358_set_usb_chg_current(chip, therm_ma);
 	return rc;
@@ -1307,7 +1309,7 @@ static int smb358_system_temp_level_set(struct smb358_charger *chip,
 	mutex_lock(&chip->current_change_lock);
 	prev_therm_lvl = chip->therm_lvl_sel;
 	chip->therm_lvl_sel = lvl_sel;
-	printk("chip->therm_lvl_sel = %d\n", chip->therm_lvl_sel);
+	pr_debug("chip->therm_lvl_sel = %d\n", chip->therm_lvl_sel);
 
 	smb358_set_appropriate_current(chip, USB);
 
@@ -1336,14 +1338,12 @@ static int smb358_battery_set_property(struct power_supply *psy,
 					rc);
 			} else {
 				chip->batt_full = true;
-				Chg_Full_Flag = true;
 				dev_dbg(chip->dev, "status = FULL, batt_full = %d\n",
 							chip->batt_full);
 			}
 			break;
 		case POWER_SUPPLY_STATUS_DISCHARGING:
 			chip->batt_full = false;
-			Chg_Full_Flag = false;
 			power_supply_changed(&chip->batt_psy);
 			dev_dbg(chip->dev, "status = DISCHARGING, batt_full = %d\n",
 							chip->batt_full);
@@ -1356,7 +1356,6 @@ static int smb358_battery_set_property(struct power_supply *psy,
 								rc);
 			} else {
 				chip->batt_full = false;
-				Chg_Full_Flag = false;
 				dev_dbg(chip->dev, "status = CHARGING, batt_full = %d\n",
 							chip->batt_full);
 			}
@@ -1511,7 +1510,6 @@ static int chg_uv(struct smb358_charger *chip, u8 status)
 	if (chip->disable_apsd && status == 0) {
 		chip->chg_present = true;
 		pre_usb_current_ma = -EINVAL;
-		 Chg_Full_Flag = false;
 		dev_dbg(chip->dev, "%s updating usb_psy present=%d",
 				__func__, chip->chg_present);
 		power_supply_set_present(chip->usb_psy, chip->chg_present);
@@ -1531,7 +1529,6 @@ static int chg_uv(struct smb358_charger *chip, u8 status)
 	if (status != 0) {
 		chip->chg_present = false;
 		pre_usb_current_ma = -EINVAL;
-		Chg_Full_Flag = false;
 		dev_dbg(chip->dev, "%s updating usb_psy present=%d",
 				__func__, chip->chg_present);
 	/* we can't set usb_psy as UNKNOWN here, will lead USERSPACE issue */
@@ -1566,7 +1563,6 @@ static int fast_chg(struct smb358_charger *chip, u8 status)
 
 	if (status & STATUS_FAST_CHARGING) {
 		chip->batt_full = false;
-		Chg_Full_Flag = false;
 	}
 	return 0;
 }
@@ -2018,7 +2014,7 @@ static int smb358_update_power_on_state(struct smb358_charger *chip)
 					if (changed) {
 						handlers[i].prev_val = handlers[i].val;
 						chip->power_ok = rt_stat;
-						printk("chip->power_ok  = %d\n", chip->power_ok);
+						pr_debug("chip->power_ok  = %d\n", chip->power_ok);
 					}
 				}
 			}
@@ -2113,7 +2109,6 @@ static irqreturn_t smb358_chg_valid_handler(int irq, void *dev_id)
 	if (present != chip->chg_present) {
 		chip->chg_present = present;
 		pre_usb_current_ma = -EINVAL;
-		Chg_Full_Flag = false;
 		dev_dbg(chip->dev, "%s updating usb_psy present=%d",
 				__func__, chip->chg_present);
 		power_supply_set_present(chip->usb_psy, chip->chg_present);
@@ -2141,7 +2136,23 @@ static void smb358_external_power_changed(struct power_supply *psy)
 			"Couldn't read USB current_max property, rc=%d\n", rc);
 	else
 		current_limit = prop.intval / 1000;
-
+	if (!((prop.intval / 1000) == 0))
+	{
+		// If Current (mA) is Equal to 500 mA, then USB is Connected.
+		if ((prop.intval / 1000) == 500)
+		{
+			// Raise USB-Charging Current (mA) to 1000 mA (Maximum Supported).
+		        pr_info("Using USB Current (mA) %d", 1000);
+			current_limit = 1000;
+		}
+		else
+		{
+			pr_info("Using AC Charge Current (mA) %d", 1250);
+			current_limit = 1250;
+		}
+	}
+	else
+		current_limit = 0;
 	chip->psy_usb_ma = current_limit;
 	smb358_enable_volatile_writes(chip);
 	smb358_set_usb_chg_current(chip, current_limit);
@@ -2490,7 +2501,7 @@ static int smb_parse_dt(struct smb358_charger *chip)
 		rc = of_property_read_u32_array(node,
 				"qcom,thermal-mitigation",
 				chip->thermal_mitigation, chip->thermal_levels);
-		printk("thermal_mitigations = %d, %d, %d, %d; thermal_levels = %d\n", chip->thermal_mitigation[0], chip->thermal_mitigation[1], chip->thermal_mitigation[2], chip->thermal_mitigation[3], chip->thermal_levels);
+		pr_debug("thermal_mitigations = %d, %d, %d, %d; thermal_levels = %d\n", chip->thermal_mitigation[0], chip->thermal_mitigation[1], chip->thermal_mitigation[2], chip->thermal_mitigation[3], chip->thermal_levels);
 		if (rc) {
 			pr_err("Couldn't read threm limits rc = %d\n", rc);
 			return rc;
@@ -2518,9 +2529,9 @@ static int smb_parse_dt(struct smb358_charger *chip)
 
 	rc = of_property_read_u32(node, "qcom,battery-fcc",
 						&chip->fcc_mah);
-	if (rc)
+	if (rc) {
 		chip->fcc_mah = BATTERY_FCC;
-
+	}
 	pr_debug("inhibit-disabled = %d, recharge-disabled = %d, recharge-mv = %d,",
 		chip->inhibit_disabled, chip->recharge_disabled,
 						chip->recharge_mv);
@@ -2742,7 +2753,7 @@ static int smb358_charger_probe(struct i2c_client *client,
 			dev_err(&client->dev,
 				"Regulator vcc_i2c enable failed rc = %d\n",
 									rc);
-			printk("first alarm start\n");
+			pr_debug("first alarm start\n");
 			goto err_set_vtg_i2c;
 		}
 	}
@@ -2784,6 +2795,11 @@ static int smb358_charger_probe(struct i2c_client *client,
 	chip->batt_psy.num_supplicants = ARRAY_SIZE(pm_batt_supplied_to);
 
 	chip->resume_completed = true;
+	if (chip->bms_psy) {
+		chip->batt_psy.bms_psy_ok = 1;
+	} else {
+		chip->batt_psy.bms_psy_ok = 0;
+	}
 	smb358_update_power_on_state(chip);
 	chip->batt_psy.bms_psy_ok = 0;
 	rc = power_supply_register(chip->dev, &chip->batt_psy);
@@ -2916,9 +2932,9 @@ static int smb358_charger_probe(struct i2c_client *client,
 
 	if (chip->bms_psy_name) {
 		chip->bms_psy = power_supply_get_by_name((char *)chip->bms_psy_name);
-			if (chip->bms_psy && chip->bms_psy->bms_psy_ok == 1 && chip->power_ok)
+			if (chip->bms_psy && chip->bms_psy->bms_psy_ok == 1 && chip->power_ok) {
 				chip->batt_psy.bms_psy_ok = 1;
-
+			}
 	}
 	return 0;
 

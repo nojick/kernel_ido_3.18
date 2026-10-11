@@ -410,6 +410,8 @@ struct device_node *of_batterydata_get_best_profile(
 	return best_node;
 }
 
+int battery_type_id = 0 ;
+
 int of_batterydata_read_data(struct device_node *batterydata_container_node,
 				struct bms_battery_data *batt_data,
 				int batt_id_uv)
@@ -459,6 +461,14 @@ int of_batterydata_read_data(struct device_node *batterydata_container_node,
 							&battery_type);
 	if (!rc)
 		pr_info("%s loaded\n", battery_type);
+		if (strcmp(battery_type, "wingtech-desai-4v4-4000mah") == 0)
+			 battery_type_id = 0 ;
+		else if (strcmp(battery_type, "wingtech-feimaotui-4v4-4000mah") == 0)
+			 battery_type_id = 1;
+		else if (strcmp(battery_type, "wingtech-guangyu-4v4-4000mah") == 0)
+			 battery_type_id = 2;
+		else if (strcmp(battery_type, "wingtech-xingwangda-4v4-4000mah") == 0)
+			 battery_type_id = 3;
 	else
 		pr_info("%s loaded\n", best_node->name);
 
