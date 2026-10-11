@@ -10,10 +10,8 @@
  * GNU General Public License for more details.
  */
 
-#include <dt-bindings/msm/pm.h>
-
 &soc {
-
+#if 1
 	qcom,spm@b089000 {
 		compatible = "qcom,spm-v2";
 		reg = <0xb089000 0x1000>;
@@ -27,31 +25,11 @@
 		qcom,saw2-avs-dly= <0>;
 		qcom,saw2-spm-dly= <0x3c102800>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 { 
-			qcom,label = "qcom,saw2-spm-cmd-wfi";
-			qcom,sequence = [60 03 60 0b 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-spc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-wfi = [60 03 60 0b 0f];
+		qcom,saw2-spm-cmd-spc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-pc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
 	};
 
 	qcom,spm@b099000 {
@@ -67,31 +45,11 @@
 		qcom,saw2-avs-dly= <0>;
 		qcom,saw2-spm-dly= <0x3c102800>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 { 
-			qcom,label = "qcom,saw2-spm-cmd-wfi";
-			qcom,sequence = [60 03 60 0b 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-spc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-wfi = [60 03 60 0b 0f];
+		qcom,saw2-spm-cmd-spc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-pc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
 	};
 
 	qcom,spm@b0a9000 {
@@ -107,31 +65,11 @@
 		qcom,saw2-avs-dly= <0>;
 		qcom,saw2-spm-dly= <0x3c102800>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 { 
-			qcom,label = "qcom,saw2-spm-cmd-wfi";
-			qcom,sequence = [60 03 60 0b 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-spc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-wfi = [60 03 60 0b 0f];
+		qcom,saw2-spm-cmd-spc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-pc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
 	};
 
 	qcom,spm@b0b9000 {
@@ -147,31 +85,11 @@
 		qcom,saw2-avs-dly= <0>;
 		qcom,saw2-spm-dly= <0x3c102800>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 { 
-			qcom,label = "qcom,saw2-spm-cmd-wfi";
-			qcom,sequence = [60 03 60 0b 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-spc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-wfi = [60 03 60 0b 0f];
+		qcom,saw2-spm-cmd-spc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-pc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
 	};
 
 	qcom,spm@b189000 {
@@ -187,31 +105,11 @@
 		qcom,saw2-avs-dly= <0>;
 		qcom,saw2-spm-dly= <0x3c102800>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 { 
-			qcom,label = "qcom,saw2-spm-cmd-wfi";
-			qcom,sequence = [60 03 60 0b 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-spc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-wfi = [60 03 60 0b 0f];
+		qcom,saw2-spm-cmd-spc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-pc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
 	};
 
 	qcom,spm@b199000 {
@@ -227,31 +125,11 @@
 		qcom,saw2-avs-dly= <0>;
 		qcom,saw2-spm-dly= <0x3c102800>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 { 
-			qcom,label = "qcom,saw2-spm-cmd-wfi";
-			qcom,sequence = [60 03 60 0b 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-spc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-wfi = [60 03 60 0b 0f];
+		qcom,saw2-spm-cmd-spc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-pc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
 	};
 
 	qcom,spm@b1a9000 {
@@ -267,31 +145,11 @@
 		qcom,saw2-avs-dly= <0>;
 		qcom,saw2-spm-dly= <0x3c102800>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 { 
-			qcom,label = "qcom,saw2-spm-cmd-wfi";
-			qcom,sequence = [60 03 60 0b 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-spc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-wfi = [60 03 60 0b 0f];
+		qcom,saw2-spm-cmd-spc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-pc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
 	};
 
 	qcom,spm@b1b9000 {
@@ -307,31 +165,11 @@
 		qcom,saw2-avs-dly= <0>;
 		qcom,saw2-spm-dly= <0x3c102800>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 { 
-			qcom,label = "qcom,saw2-spm-cmd-wfi";
-			qcom,sequence = [60 03 60 0b 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-spc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-wfi = [60 03 60 0b 0f];
+		qcom,saw2-spm-cmd-spc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [20 50 1b 10 80 30 90 5b 60 50 03 60
+		qcom,saw2-spm-cmd-pc = [20 50 1b 10 80 30 90 5b 60 50 03 60
 				76 76 0b 50 1b 94 5B 80 10 26 30 50 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
 	};
 
 	qcom,spm@b012000 {
@@ -342,33 +180,12 @@
 		qcom,saw2-cfg = <0x1>;
 		qcom,saw2-spm-dly= <0x3C11840A>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 {
-			qcom,label = "qcom,saw2-spm-cmd-ret";
-			qcom,sequence = [00 03 00 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-gdhs";
-			qcom,sequence = [00 b0 7b 20 32 6b c0 e0 d0 50 42 f0 b0
-				03 1f 1b b0 7b 4e 02 02 d0 e0 c0 22 6b 02 32 52
-				f0 b0 0f];
-			//qcom,spm_en;
-			//qcom,pc_mode;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [00 b0 7b 32 10 e0 d0 6b c0 50 42 b0 03
-				1f 1b b0 7b 4e 02 02 c0 d0 12 e0 6b 02 32 50 b0 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
+		qcom,saw2-spm-cmd-ret = [00 03 00 0f];
+		qcom,saw2-spm-cmd-gdhs = [00 b0 7b 20 32 6b c0 e0 d0 50 42 f0 b0
+			03 1f 1b b0 7b 4e 02 02 d0 e0 c0 22 6b 02 32 52
+			f0 b0 0f];
+		qcom,saw2-spm-cmd-pc = [00 b0 7b 32 10 e0 d0 6b c0 50 42 b0 03
+			1f 1b b0 7b 4e 02 02 c0 d0 12 e0 6b 02 32 50 b0 0f];
 	};
 
 	qcom,spm@b112000 {
@@ -379,66 +196,29 @@
 		qcom,saw2-cfg = <0x1>;
 		qcom,saw2-spm-dly= <0x3C11840A>;
 		qcom,saw2-spm-ctl = <0xe>;
-
-		qcom,mode0 {
-			qcom,label = "qcom,saw2-spm-cmd-ret";
-			qcom,sequence = [00 03 00 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-		qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-gdhs";
-			qcom,sequence = [00 b0 7b 20 32 6b c0 e0 d0 50 42 f0 b0
+		qcom,saw2-spm-cmd-ret = [00 03 00 0f];
+		qcom,saw2-spm-cmd-gdhs = [00 b0 7b 20 32 6b c0 e0 d0 50 42 f0 b0
 			03 1f 1b b0 7b 4e 02 02 d0 e0 c0 22 6b 02 32 52
 			f0 b0 0f];
-			//qcom,spm_en;
-			//qcom,pc_mode;
-			//qcom,isar;
-		};
-
-		qcom,mode2 {
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [00 b0 7b 32 10 e0 d0 6b c0 50 42 b0 03
-				1f 1b b0 7b 4e 02 02 c0 d0 12 e0 6b 02 32 50 b0 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-			//qcom,pc_mode;
-			//qcom,slp_cmd_mode;
-		};
+		qcom,saw2-spm-cmd-pc = [00 b0 7b 32 10 e0 d0 6b c0 50 42 b0 03
+			1f 1b b0 7b 4e 02 02 c0 d0 12 e0 6b 02 32 50 b0 0f];
 	};
 
-#if 1
 	qcom,spm@b1d2000 {
 		compatible = "qcom,spm-v2";
 		reg = <0xb1d2000 0x1000>;
 		qcom,name = "system-cci";
-		//qcom,supports-rpm-hs;
 		qcom,saw2-ver-reg = <0xfd0>;
 		qcom,saw2-cfg = <0x14>;
 		qcom,saw2-spm-dly= <0x3C102800>;
 		qcom,saw2-spm-ctl = <0xe>;
 		qcom,saw2-pmic-data0 = <0x07030011>;
 		qcom,saw2-pmic-data1 = <0x00030010>;
-
-                qcom,mode0 {
-			qcom,label = "qcom,saw2-spm-cmd-ret";
-			qcom,sequence = [00 03 00 0f];
-			//qcom,spm_en;
-			//qcom,isar;
-		};
-
-                qcom,mode1 { 
-			qcom,label = "qcom,saw2-spm-cmd-pc";
-			qcom,sequence = [00 60 50 11 07 70 7B 01 50
+                qcom,saw2-spm-cmd-ret = [00 03 00 0f];
+                qcom,saw2-spm-cmd-pc = [00 60 50 11 07 70 7B 01 50
                                 02 62 72 0f];
-			//qcom,pc_mode;
-			//qcom,spm_en;
-			//qcom,isar;
-		};
 	};
 #endif
-
 	qcom,lpm-levels {
 		compatible = "qcom,lpm-levels";
 		#address-cells = <1>;
@@ -462,7 +242,6 @@
 				qcom,time-overhead = <1540>;
 			};
 
-#if 1
 			qcom,pm-cluster-level@1{
 				reg = <1>;
 				label = "system-cci-retention";
@@ -472,7 +251,6 @@
 				qcom,energy-overhead = <1135000>;
 				qcom,time-overhead = <1800>;
 				qcom,min-child-idx = <2>;
-				qcom,reset-level = <LPM_RESET_LVL_RET>;
 			};
 
 			qcom,pm-cluster-level@2{
@@ -485,11 +263,9 @@
 				qcom,time-overhead = <3700>;
 				qcom,min-child-idx = <2>;
 				qcom,notify-rpm;
-				//qcom,no-cache-flush;
 				qcom,disable-dynamic-int-routing;
-				qcom,reset-level = <LPM_RESET_LVL_PC>;
 			};
-#endif
+
 			qcom,pm-cluster@0{
 				reg = <0>;
 				#address-cells = <1>;
@@ -509,7 +285,6 @@
 					qcom,time-overhead = <750>;
 				};
 
-#if 1
 				qcom,pm-cluster-level@1{
 					reg = <1>;
 					label = "power-l2-gdhs";
@@ -520,9 +295,7 @@
 					qcom,time-overhead = <837>;
 					qcom,min-child-idx = <1>;
 				};
-#endif
 
-#if 1
 				qcom,pm-cluster-level@2{
 					reg = <2>;
 					label = "power-l2-pc";
@@ -532,9 +305,7 @@
 					qcom,energy-overhead = <955000>;
 					qcom,time-overhead = <1540>;
 					qcom,min-child-idx = <2>;
-					qcom,reset-level = <LPM_RESET_LVL_PC>;
 				};
-#endif
 
 				qcom,pm-cpu {
 					#address-cells = <1>;
@@ -549,7 +320,6 @@
 						qcom,time-overhead = <60>;
 					};
 
-#if 0
 					qcom,pm-cpu-level@1 {
 						reg = <1>;
 						qcom,spm-cpu-mode = "standalone_pc";
@@ -558,11 +328,8 @@
 						qcom,energy-overhead = <461276>;
 						qcom,time-overhead = <680>;
 						qcom,use-broadcast-timer;
-						qcom,reset-level = <LPM_RESET_LVL_PC>;
 					};
-#endif
 
-#if 0
 					qcom,pm-cpu-level@2 {
 						reg = <2>;
 						qcom,spm-cpu-mode = "pc";
@@ -571,9 +338,7 @@
 						qcom,energy-overhead = <481028>;
 						qcom,time-overhead = <750>;
 						qcom,use-broadcast-timer;
-						qcom,reset-level = <LPM_RESET_LVL_PC>;
 					};
-#endif
 				};
 			};
 
@@ -596,7 +361,6 @@
 					qcom,time-overhead = <600>;
 				};
 
-#if 1
 				qcom,pm-cluster-level@1{
 					reg = <1>;
 					label = "performance-l2-gdhs";
@@ -607,9 +371,7 @@
 					qcom,time-overhead = <827>;
 					qcom,min-child-idx = <1>;
 				};
-#endif
 
-#if 1
 				qcom,pm-cluster-level@2{
 					reg = <2>;
 					label = "performance-l2-pc";
@@ -620,7 +382,6 @@
 					qcom,time-overhead = <1260>;
 					qcom,min-child-idx = <2>;
 				};
-#endif
 
 				qcom,pm-cpu {
 					#address-cells = <1>;
@@ -635,7 +396,6 @@
 						qcom,time-overhead = <20>;
 					};
 
-#if 0
 					qcom,pm-cpu-level@1 {
 						reg = <1>;
 						qcom,spm-cpu-mode = "standalone_pc";
@@ -644,11 +404,8 @@
 						qcom,energy-overhead = <458673>;
 						qcom,time-overhead = <550>;
 						qcom,use-broadcast-timer;
-						qcom,reset-level = <LPM_RESET_LVL_PC>;
 					};
-#endif
 
-#if 0
 					qcom,pm-cpu-level@2 {
 						reg = <2>;
 						qcom,spm-cpu-mode = "pc";
@@ -657,9 +414,7 @@
 						qcom,energy-overhead = <497400>;
 						qcom,time-overhead = <600>;
 						qcom,use-broadcast-timer;
-						qcom,reset-level = <LPM_RESET_LVL_PC>;
 					};
-#endif
 				};
 			};
 		};
@@ -690,8 +445,7 @@
 
 		qcom,gic-parent = <&intc>;
 		qcom,gic-map = <2 216>, /* tsens_upper_lower_int */
-			<49 172>, /* usb1_hs_async_wakeup_irq */
-			<58 166>, /* usb_hs_irq */
+			<50 172>, /* usb1_hs_async_wakeup_irq */
 			<53 104>, /* mdss_irq */
 			<62 222>, /* ee0_krait_hlos_spmi_periph_irq */
 			<0xff 18>,  /* APC_qgicQTmrSecPhysIrptReq */
@@ -738,6 +492,7 @@
 			<0xff 153>, /* smmu_bus_intr[58] */
 			<0xff 155>, /* sdc1_irq(0) */
 			<0xff 157>, /* sdc2_irq(0) */
+			<0xff 166>, /* usb_hs_irq */
 			<0xff 170>, /* sdc1_pwr_cmd_irq */
 			<0xff 173>, /* o_wcss_apss_smd_hi */
 			<0xff 174>, /* o_wcss_apss_smd_med */
@@ -747,6 +502,7 @@
 			<0xff 178>, /* o_wcss_apss_wlan_rx_data_avail */
 			<0xff 179>, /* o_wcss_apss_asic_intr */
 			<0xff 181>, /* o_wcss_apss_wdog_bite_and_reset_rdy */
+
 			<0xff 188>, /* lpass_irq_out_apcs(0) */
 			<0xff 189>, /* lpass_irq_out_apcs(1) */
 			<0xff 190>, /* lpass_irq_out_apcs(2) */
