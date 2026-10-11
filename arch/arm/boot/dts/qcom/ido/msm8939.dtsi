@@ -653,7 +653,6 @@
 
 	cpu-pmu {
 		compatible = "arm,armv8-pmuv3";
-		qcom,irq-is-percpu;
 		interrupts = <1 7 0xff00>;
 	};
 
@@ -674,6 +673,8 @@
 		interrupts = <0 29 1>;
 		qcom,rx-ring-size = <32>;
 		qcom,max-rx-mtu = <4096>;
+		qcom,fast-shutdown;
+		qcom,no-cpu-affinity;
 	};
 
 	qcom,smdtty {
