@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,20 +27,10 @@
 #include "spm_driver.h"
 
 #define VDD_DEFAULT 0xDEADF00D
-#define SLP_CMD_BIT 17
-#define PC_MODE_BIT 16
-#define RET_MODE_BIT 15
-#define EVENT_SYNC_BIT 24
-#define ISAR_BIT 3
-#define SPM_EN_BIT 0
-#define PWR_STATE_IDX_BITS 20
-#define PWR_STATE_IDX_MASK 0x07
-#define WAKE_CONFIG_BITS 1
-#define WAKE_CONFIG_MASK 0x03
 
 struct msm_spm_power_modes {
 	uint32_t mode;
-	uint32_t ctl;
+	uint32_t start_addr;
 };
 
 struct msm_spm_device {
@@ -150,12 +140,17 @@ EXPORT_SYMBOL(msm_spm_set_vdd);
  */
 int msm_spm_get_vdd(unsigned int cpu)
 {
+	int ret;
 	struct msm_spm_device *dev = per_cpu(cpu_vctl_device, cpu);
 
 	if (!dev)
 		return -EPROBE_DEFER;
 
-	return msm_spm_drv_get_vdd(&dev->reg_data) ? : -EINVAL;
+	ret = IS_ERR(dev);
+	if (ret)
+		return ret;
+
+	return dev->cpu_vdd;
 }
 EXPORT_SYMBOL(msm_spm_get_vdd);
 
@@ -241,19 +236,16 @@ static int msm_spm_dev_set_low_power_mode(struct msm_spm_device *dev,
 		unsigned int mode, bool notify_rpm, bool set_spm_enable)
 {
 	uint32_t i;
+	uint32_t start_addr = 0;
 	int ret = -EINVAL;
-	uint32_t ctl = 0;
-
-	if (!dev) {
-		pr_err("dev is NULL\n");
-		return -ENODEV;
-	}
+	bool pc_mode = false;
 
 	if (!dev->initialized)
 		return -ENXIO;
 
-	if (!dev->num_modes)
-		return 0;
+	if ((mode == MSM_SPM_MODE_POWER_COLLAPSE)
+			|| (mode == MSM_SPM_MODE_GDHS))
+		pc_mode = true;
 
 	if (mode == MSM_SPM_MODE_DISABLED && set_spm_enable) {
 		ret = msm_spm_drv_set_spm_enable(&dev->reg_data, false);
@@ -264,13 +256,14 @@ static int msm_spm_dev_set_low_power_mode(struct msm_spm_device *dev,
 			if (dev->modes[i].mode != mode)
 				continue;
 
-			ctl = dev->modes[i].ctl;
 			if (!dev->allow_rpm_hs && notify_rpm)
-				ctl &= ~BIT(SLP_CMD_BIT);
+				notify_rpm = false;
 
+			start_addr = dev->modes[i].start_addr;
 			break;
 		}
-		ret = msm_spm_drv_set_low_power_mode(&dev->reg_data, ctl);
+		ret = msm_spm_drv_set_low_power_mode(&dev->reg_data,
+					start_addr, pc_mode, notify_rpm);
 	}
 
 	msm_spm_config_q2s(dev, mode);
@@ -295,6 +288,7 @@ static int msm_spm_dev_init(struct msm_spm_device *dev,
 	if (!dev->modes)
 		goto spm_failed_malloc;
 
+	dev->reg_data.ver_reg = data->ver_reg;
 	ret = msm_spm_drv_init(&dev->reg_data, data);
 
 	if (ret)
@@ -305,8 +299,7 @@ static int msm_spm_dev_init(struct msm_spm_device *dev,
 		/* Default offset is 0 and gets updated as we write more
 		 * sequences into SPM
 		 */
-		dev->modes[i].ctl = data->modes[i].ctl | ((offset & 0x1FF)
-						<< 4);
+		dev->modes[i].start_addr = offset;
 		ret = msm_spm_drv_write_seq_data(&dev->reg_data,
 						data->modes[i].cmd, &offset);
 		if (ret < 0)
@@ -314,9 +307,7 @@ static int msm_spm_dev_init(struct msm_spm_device *dev,
 
 		dev->modes[i].mode = data->modes[i].mode;
 	}
-
-	msm_spm_drv_reinit(&dev->reg_data, dev->num_modes ? true : false);
-
+	msm_spm_drv_flush_seq_entry(&dev->reg_data);
 	dev->initialized = true;
 
 	return 0;
@@ -382,8 +373,7 @@ void msm_spm_reinit(void)
 {
 	unsigned int cpu;
 	for_each_possible_cpu(cpu)
-		msm_spm_drv_reinit(
-			&per_cpu(msm_cpu_spm_device.reg_data, cpu), true);
+		msm_spm_drv_reinit(&per_cpu(msm_cpu_spm_device.reg_data, cpu));
 }
 EXPORT_SYMBOL(msm_spm_reinit);
 
@@ -480,60 +470,6 @@ int msm_spm_avs_set_limit(unsigned int cpu,
 	return msm_spm_drv_set_avs_limit(&dev->reg_data, min_lvl, max_lvl);
 }
 EXPORT_SYMBOL(msm_spm_avs_set_limit);
-
-/**
- * msm_spm_avs_enable_irq() - Enable an AVS interrupt
- * @cpu: specifies which CPU's AVS should be configured
- * @irq: specifies which interrupt to enable
- *
- * Returns errno in case of failure or 0 if successful.
- */
-int msm_spm_avs_enable_irq(unsigned int cpu, enum msm_spm_avs_irq irq)
-{
-	struct msm_spm_device *dev = per_cpu(cpu_vctl_device, cpu);
-
-	if (!dev)
-		return -ENXIO;
-
-	return msm_spm_drv_set_avs_irq_enable(&dev->reg_data, irq, true);
-}
-EXPORT_SYMBOL(msm_spm_avs_enable_irq);
-
-/**
- * msm_spm_avs_disable_irq() - Disable an AVS interrupt
- * @cpu: specifies which CPU's AVS should be configured
- * @irq: specifies which interrupt to disable
- *
- * Returns errno in case of failure or 0 if successful.
- */
-int msm_spm_avs_disable_irq(unsigned int cpu, enum msm_spm_avs_irq irq)
-{
-	struct msm_spm_device *dev = per_cpu(cpu_vctl_device, cpu);
-
-	if (!dev)
-		return -ENXIO;
-
-	return msm_spm_drv_set_avs_irq_enable(&dev->reg_data, irq, false);
-}
-EXPORT_SYMBOL(msm_spm_avs_disable_irq);
-
-/**
- * msm_spm_avs_clear_irq() - Clear a latched AVS interrupt
- * @cpu: specifies which CPU's AVS should be configured
- * @irq: specifies which interrupt to clear
- *
- * Returns errno in case of failure or 0 if successful.
- */
-int msm_spm_avs_clear_irq(unsigned int cpu, enum msm_spm_avs_irq irq)
-{
-	struct msm_spm_device *dev = per_cpu(cpu_vctl_device, cpu);
-
-	if (!dev)
-		return -ENXIO;
-
-	return msm_spm_drv_avs_clear_irq(&dev->reg_data, irq);
-}
-EXPORT_SYMBOL(msm_spm_avs_clear_irq);
 
 /**
  * msm_spm_set_low_power_mode() - Configure SPM start address for low power mode
@@ -646,6 +582,7 @@ static int get_cpu_id(struct device_node *node)
 {
 	struct device_node *cpu_node;
 	u32 cpu;
+	int ret = -EINVAL;
 	char *key = "qcom,cpu";
 
 	cpu_node = of_parse_phandle(node, key, 0);
@@ -654,10 +591,14 @@ static int get_cpu_id(struct device_node *node)
 			if (of_get_cpu_node(cpu, NULL) == cpu_node)
 				return cpu;
 		}
-	} else
-		return num_possible_cpus();
+	} else {
+		char *key = "qcom,core-id";
 
-	return -EINVAL;
+		ret = of_property_read_u32(node, key, &cpu);
+		if (!ret)
+			return cpu;
+	}
+	return ret;
 }
 
 static struct msm_spm_device *msm_spm_get_device(struct platform_device *pdev)
@@ -669,7 +610,7 @@ static struct msm_spm_device *msm_spm_get_device(struct platform_device *pdev)
 
 	if ((cpu >= 0) && cpu < num_possible_cpus())
 		dev = &per_cpu(msm_cpu_spm_device, cpu);
-	else if (cpu == num_possible_cpus())
+	else if ((cpu == 0xffff) || (cpu < 0))
 		dev = devm_kzalloc(&pdev->dev, sizeof(struct msm_spm_device),
 					GFP_KERNEL);
 
@@ -689,19 +630,34 @@ static struct msm_spm_device *msm_spm_get_device(struct platform_device *pdev)
 
 static void get_cpumask(struct device_node *node, struct cpumask *mask)
 {
-	unsigned c;
+	unsigned long vctl_mask = 0;
+	unsigned c = 0;
 	int idx = 0;
-	struct device_node *cpu_node;
+	struct device_node *cpu_node = NULL;
+	int ret = 0;
 	char *key = "qcom,cpu-vctl-list";
+	bool found = false;
 
 	cpu_node = of_parse_phandle(node, key, idx++);
 	while (cpu_node) {
+		found = true;
 		for_each_possible_cpu(c) {
 			if (of_get_cpu_node(c, NULL) == cpu_node)
 				cpumask_set_cpu(c, mask);
 		}
 		cpu_node = of_parse_phandle(node, key, idx++);
 	};
+
+	if (found)
+		return;
+
+	key = "qcom,cpu-vctl-mask";
+	ret = of_property_read_u32(node, key, (u32 *) &vctl_mask);
+	if (!ret) {
+		for_each_set_bit(c, &vctl_mask, num_possible_cpus()) {
+			cpumask_set_cpu(c, mask);
+		}
+	}
 }
 
 static int msm_spm_dev_probe(struct platform_device *pdev)
@@ -710,7 +666,6 @@ static int msm_spm_dev_probe(struct platform_device *pdev)
 	int cpu = 0;
 	int i = 0;
 	struct device_node *node = pdev->dev.of_node;
-	struct device_node *n = NULL;
 	struct msm_spm_platform_data spm_data;
 	char *key = NULL;
 	uint32_t val = 0;
@@ -760,11 +715,8 @@ static int msm_spm_dev_probe(struct platform_device *pdev)
 
 	dev = msm_spm_get_device(pdev);
 	if (!dev) {
-		/*
-		 * For partial goods support some CPUs might not be available
-		 * in which case, shouldn't throw an error
-		 */
-		return 0;
+		ret = -ENOMEM;
+		goto fail;
 	}
 	get_cpumask(node, &dev->mask);
 
@@ -798,15 +750,11 @@ static int msm_spm_dev_probe(struct platform_device *pdev)
 	}
 
 	spm_data.vctl_port = -1;
-	spm_data.vctl_port_ub = -1;
 	spm_data.phase_port = -1;
 	spm_data.pfm_port = -1;
 
 	key = "qcom,vctl-port";
 	of_property_read_u32(node, key, &spm_data.vctl_port);
-
-	key = "qcom,vctl-port-ub";
-	of_property_read_u32(node, key, &spm_data.vctl_port_ub);
 
 	key = "qcom,phase-port";
 	of_property_read_u32(node, key, &spm_data.phase_port);
@@ -869,75 +817,23 @@ static int msm_spm_dev_probe(struct platform_device *pdev)
 	 * SPM_LEGACY_MODE bit.
 	 */
 	msm_spm_config_q2s(dev, MSM_SPM_MODE_POWER_COLLAPSE);
-	msm_spm_drv_reg_init(&dev->reg_data, &spm_data);
 
 	for (i = 0; i < ARRAY_SIZE(spm_of_data); i++) {
 		ret = of_property_read_u32(node, spm_of_data[i].key, &val);
 		if (ret)
 			continue;
-		msm_spm_drv_upd_reg_shadow(&dev->reg_data, spm_of_data[i].id,
-				val);
+		spm_data.reg_init_values[spm_of_data[i].id] = val;
 	}
 
-	for_each_child_of_node(node, n) {
-		const char *name;
-		bool bit_set;
-		u8 field_val;
-		int sync;
-
-		if (!n->name)
-			continue;
-
-		ret = of_property_read_string(n, "qcom,label", &name);
-		if (ret)
-			continue;
-
-		for (i = 0; i < ARRAY_SIZE(mode_of_data); i++)
-			if (!strcmp(name, mode_of_data[i].key))
-					break;
-
-		if (i == ARRAY_SIZE(mode_of_data)) {
-			pr_err("Mode name invalid %s\n", name);
-			break;
-		}
-
-		modes[mode_count].mode = mode_of_data[i].id;
+	for (i = 0; i < ARRAY_SIZE(mode_of_data); i++) {
+		key = mode_of_data[i].key;
 		modes[mode_count].cmd =
-			(uint8_t *)of_get_property(n, "qcom,sequence", &len);
-		if (!modes[mode_count].cmd) {
-			pr_err("cmd is empty\n");
+			(uint8_t *)of_get_property(node, key, &len);
+		if (!modes[mode_count].cmd)
 			continue;
-		}
-
-		bit_set = of_property_read_bool(n, "qcom,pc_mode");
-		modes[mode_count].ctl |= bit_set ? BIT(PC_MODE_BIT) : 0;
-
-		bit_set = of_property_read_bool(n, "qcom,ret_mode");
-		modes[mode_count].ctl |= bit_set ? BIT(RET_MODE_BIT) : 0;
-
-		bit_set = of_property_read_bool(n, "qcom,slp_cmd_mode");
-		modes[mode_count].ctl |= bit_set ? BIT(SLP_CMD_BIT) : 0;
-
-		bit_set = of_property_read_bool(n, "qcom,isar");
-		modes[mode_count].ctl |= bit_set ? BIT(ISAR_BIT) : 0;
-
-		bit_set = of_property_read_bool(n, "qcom,spm_en");
-		modes[mode_count].ctl |= bit_set ? BIT(SPM_EN_BIT) : 0;
-
-		ret  = of_property_read_u8(n, "qcom,pwr-state-idx", &field_val);
-		if (!ret)
-			modes[mode_count].ctl |= (field_val &
-				PWR_STATE_IDX_MASK) << PWR_STATE_IDX_BITS;
-
-		ret = of_property_read_u8(n, "qcom,wake-config", &field_val);
-		if (!ret)
-			modes[mode_count].ctl |= (field_val & WAKE_CONFIG_MASK)
-				<< WAKE_CONFIG_BITS;
-
-		ret = of_property_read_u32(n, "qcom,event_sync", &sync);
-		if (!ret)
-			modes[mode_count].ctl |= sync << EVENT_SYNC_BIT;
-
+		modes[mode_count].mode = mode_of_data[i].id;
+		pr_debug("%s(): dev: %s cmd:%s, mode:%d\n", __func__,
+				dev->name, key, modes[mode_count].mode);
 		mode_count++;
 	}
 
@@ -949,15 +845,12 @@ static int msm_spm_dev_probe(struct platform_device *pdev)
 
 	ret = msm_spm_dev_init(dev, &spm_data);
 	if (ret)
-		pr_err("SPM modes programming is not available from HLOS\n");
+		goto fail;
 
 	platform_set_drvdata(pdev, dev);
 
 	for_each_cpu(cpu, &dev->mask)
 		per_cpu(cpu_vctl_device, cpu) = dev;
-
-	if (!spm_data.num_modes)
-		return 0;
 
 	cpu = get_cpu_id(pdev->dev.of_node);
 
@@ -970,6 +863,7 @@ static int msm_spm_dev_probe(struct platform_device *pdev)
 		msm_spm_config_low_power_mode(dev, MSM_SPM_MODE_CLOCK_GATING,
 				false);
 	put_online_cpus();
+
 	return ret;
 
 fail:

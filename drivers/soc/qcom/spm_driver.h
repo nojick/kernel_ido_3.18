@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2015, 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -53,7 +53,7 @@ enum {
 struct msm_spm_seq_entry {
 	uint32_t mode;
 	uint8_t *cmd;
-	uint32_t ctl;
+	bool  notify_rpm;
 };
 
 struct msm_spm_platform_data {
@@ -62,7 +62,6 @@ struct msm_spm_platform_data {
 
 	uint32_t ver_reg;
 	uint32_t vctl_port;
-	int vctl_port_ub;
 	uint32_t phase_port;
 	uint32_t pfm_port;
 
@@ -85,7 +84,6 @@ struct msm_spm_driver_data {
 	uint32_t minor;
 	uint32_t ver_reg;
 	uint32_t vctl_port;
-	int vctl_port_ub;
 	uint32_t phase_port;
 	uint32_t pfm_port;
 	void __iomem *reg_base_addr;
@@ -98,11 +96,9 @@ struct msm_spm_driver_data {
 
 int msm_spm_drv_init(struct msm_spm_driver_data *dev,
 		struct msm_spm_platform_data *data);
-int msm_spm_drv_reg_init(struct msm_spm_driver_data *dev,
-		struct msm_spm_platform_data *data);
-void msm_spm_drv_reinit(struct msm_spm_driver_data *dev, bool seq);
+void msm_spm_drv_reinit(struct msm_spm_driver_data *dev);
 int msm_spm_drv_set_low_power_mode(struct msm_spm_driver_data *dev,
-		uint32_t ctl);
+		uint32_t addr, bool pc_mode, bool notify_rpm);
 int msm_spm_drv_set_vdd(struct msm_spm_driver_data *dev,
 		unsigned int vlevel);
 void dump_regs(struct msm_spm_driver_data *dev, int cpu);
@@ -122,15 +118,7 @@ int msm_spm_drv_set_avs_limit(struct msm_spm_driver_data *dev,
 int msm_spm_drv_set_avs_enable(struct msm_spm_driver_data *dev,
 		 bool enable);
 int msm_spm_drv_get_avs_enable(struct msm_spm_driver_data *dev);
-
-int msm_spm_drv_set_avs_irq_enable(struct msm_spm_driver_data *dev,
-		enum msm_spm_avs_irq irq, bool enable);
-int msm_spm_drv_avs_clear_irq(struct msm_spm_driver_data *dev,
-		enum msm_spm_avs_irq irq);
-
 void msm_spm_reinit(void);
 int msm_spm_init(struct msm_spm_platform_data *data, int nr_devs);
-void msm_spm_drv_upd_reg_shadow(struct msm_spm_driver_data *dev, int id,
-		int val);
-uint32_t msm_spm_drv_get_vdd(struct msm_spm_driver_data *dev);
+
 #endif
