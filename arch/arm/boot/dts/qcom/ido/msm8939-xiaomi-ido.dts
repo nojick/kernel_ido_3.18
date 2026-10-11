@@ -46,7 +46,7 @@
 
 	chosen {
 		stdout-path = "serial0";
-		bootargs = "fbcon=nodefer earlycon=tty0 console=tty0 ramoops.mem_address=0xdfe00000 ramoops.mem_size=0x00200000 ramoops.record_size=0x40000 ramoops.console_size=0x40000 ramoops.ftrace_size=0x10000 ramoops.pmsg_size=0x20000 ramoops.ecc=1";
+		bootargs = "boot_cpus=0,1,2,3,4,5,6,7 sched_enable_hmp=1 fbcon=nodefer earlycon=tty0 console=tty0 ramoops.mem_address=0xdfe00000 ramoops.mem_size=0x00200000 ramoops.record_size=0x40000 ramoops.console_size=0x40000 ramoops.ftrace_size=0x10000 ramoops.pmsg_size=0x20000 ramoops.ecc=1";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
