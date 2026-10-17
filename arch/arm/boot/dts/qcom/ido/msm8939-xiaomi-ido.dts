@@ -376,7 +376,27 @@
 	qcom,battery-data = <&qrd_batterydata>;
 };
 #endif
+
 &i2c_5	{/* BLSP1 QUP5 */
+#if 0
+		focaltech@3E{
+			compatible = "focaltech,fts";
+			reg = <0x3E>;
+			interrupt-parent = <&msmgpio>;
+			interrupts = <13 0x2008>;
+			vdd-supply = <&pm8916_l17>;
+			vcc_i2c-supply = <&pm8916_l6>;
+			focaltech,reset-gpio = <&msmgpio 12 0x0>;
+			focaltech,irq-gpio = <&msmgpio 13 0x2008>;
+			focaltech,display-coords = <0 0 720 1280>;
+			focaltech,max-touch-number = <10>;
+			focaltech,have-key;
+			focaltech,key-number = <3>;
+			focaltech,keys = <139 172 158>;
+			focaltech,key-y-coord = <2000>;
+			focaltech,key-x-coords = <180 540 900>;
+		};
+#endif
 		ftech@3E {
 			compatible = "focaltech,5336";
 			reg = <0x3E>;
