@@ -119,7 +119,7 @@ static struct wcd_mbhc_config mbhc_cfg = {
 	.key_code[7] = 0,
 	.linein_th = 5000,
 };
-
+#if 0
 static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.read_fw_bin = false,
 	.calibration = NULL,
@@ -128,7 +128,7 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = true,
 };
-
+#endif
 void *def_tapan_mbhc_cal(void)
 {
 	void *tapan_cal;
@@ -1584,8 +1584,11 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct msm8916_asoc_mach_data *pdata =
 			snd_soc_card_get_drvdata(card);
 	int ret = 0;
+	#if 0
 	int val = 0;
+
 	void __iomem *vaddr = NULL;
+	#endif
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 				substream->name, substream->stream);
 	if (!pdata->codec_type &&
