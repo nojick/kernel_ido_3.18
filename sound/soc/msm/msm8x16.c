@@ -1303,11 +1303,11 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			lineout_status_get, lineout_status_put),
 	SOC_ENUM_EXT("headset amp", msm_snd_enum[4],
 			headset_status_get, headset_status_put),
-	SOC_ENUM_EXT("RX SampleRate", msm_snd_enum[3],
+	SOC_ENUM_EXT("RX SampleRate", msm_snd_enum[5],
 			pri_rx_sample_rate_get, pri_rx_sample_rate_put),
-	SOC_ENUM_EXT("MI2S TX SampleRate", msm_snd_enum[5],
+	SOC_ENUM_EXT("MI2S TX SampleRate", msm_snd_enum[6],
 			mi2s_tx_sample_rate_get, mi2s_tx_sample_rate_put),
-	SOC_ENUM_EXT("MI2S_RX SampleRate", msm_snd_enum[3],
+	SOC_ENUM_EXT("MI2S_RX SampleRate", msm_snd_enum[7],
 			mi2s_rx_sample_rate_get, mi2s_rx_sample_rate_put),
 };
 
