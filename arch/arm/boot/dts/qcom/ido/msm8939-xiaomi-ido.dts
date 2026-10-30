@@ -340,6 +340,47 @@
 	};
 #endif
 };
+
+&i2c_6  {
+	aw2013@45 {
+		compatible = "awinic,aw2013";
+		reg = <0x45>;
+		vdd-supply = <&pm8916_l16>;
+		vcc-supply = <&pm8916_l16>;
+
+		aw2013,red {
+			aw2013,name = "red";
+			aw2013,id = <0>;
+			aw2013,max-brightness = <255>;
+			aw2013,max-current = <3>;
+			aw2013,rise-time-ms = <2>;
+			aw2013,hold-time-ms = <1>;
+			aw2013,fall-time-ms = <2>;
+			aw2013,off-time-ms = <1>;
+		};
+		aw2013,green {
+			aw2013,name = "green";
+			aw2013,id = <1>;
+			aw2013,max-brightness = <255>;
+			aw2013,max-current = <3>;
+			aw2013,rise-time-ms = <2>;
+			aw2013,hold-time-ms = <1>;
+			aw2013,fall-time-ms = <2>;
+			aw2013,off-time-ms = <1>;
+		};
+		aw2013,blue {
+			aw2013,name = "blue";
+			aw2013,id = <2>;
+			aw2013,max-brightness = <255>;
+			aw2013,max-current = <3>;
+			aw2013,rise-time-ms = <2>;
+			aw2013,hold-time-ms = <1>;
+			aw2013,fall-time-ms = <2>;
+			aw2013,off-time-ms = <1>;
+		};
+	};
+};
+
 #if 1
 &pm8916_bms {
 	qcom,v-cutoff-uv = <3400000>;
@@ -727,6 +768,12 @@
 	qcom,sensors = <10>;
 	qcom,slope = <2911 2789 2906 2763 2922 2867 2833 2838 2840 2852>;
 	qcom,sensor-id = <0 1 2 3 5 6 7 8 9 10>;
+};
+
+&pm8916_l16 {
+	regulator-min-microvolt = <2600000>;
+	qcom,init-voltage = <2600000>;
+	regulator-always-on;
 };
 
 &firmware {
