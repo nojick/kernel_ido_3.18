@@ -115,6 +115,22 @@
 		};
 	};
 
+	gpio-leds {
+		compatible = "gpio-leds";
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_led_off>;
+
+		infred {
+			gpios = <&msmgpio 9 0>;
+			label = "infrared";
+			linux,default-trigger = "infra-red";
+			default-state = "off";
+			retain-state-suspended;
+		};
+
+	};
+
 	sound {
 		compatible = "qcom,msm8x16-audio-codec";
 		qcom,model = "msm8939-snd-card-skuk";
