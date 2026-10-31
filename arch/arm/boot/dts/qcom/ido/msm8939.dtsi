@@ -1122,7 +1122,7 @@
 			qcom,usb-bam-fifo-baseaddr = <0x08603800>;
 			qcom,ignore-core-reset-ack;
 			qcom,disable-clk-gating;
-			qcom,reset-bam-on-connect;
+			qcom,reset-bam-on-disconnect;
 
 			qcom,pipe0 {
 				label = "hsusb-qdss-in-0";
